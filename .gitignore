@@ -1,0 +1,40 @@
+.idea/
+.scratch/
+.superpowers/
+
+# Dependencies and build output
+node_modules/
+.turbo/
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Expo / React Native
+.expo/
+android/
+ios/
+*.jks
+*.keystore
+
+# Local configuration and private health data
+.env*
+!.env.example
+private-data/
+uploads/
+outputs/
+docs/superpowers/
+*.csv
+*.pdf
+*.vcf
+*.xlsx
+*.xls
+*.docx
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.zip
+
+# Editor and operating-system files
+.DS_Store

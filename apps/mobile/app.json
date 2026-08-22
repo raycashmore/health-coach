@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Health Coach",
+    "slug": "health-coach",
+    "scheme": "health-coach",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.example.healthcoach"
+    }
+  }
+}

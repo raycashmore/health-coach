@@ -1,0 +1,22 @@
+{
+  "name": "@health-coach/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "android": "expo start --android",
+    "build": "expo export --platform android",
+    "dev": "expo start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@health-coach/health-core": "workspace:*",
+    "expo": "^54.0.0",
+    "react": "^19.0.0",
+    "react-native": "^0.81.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.8.0"
+  }
+}
