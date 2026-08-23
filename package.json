@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "build": "turbo run build",
@@ -16,8 +16,13 @@
     "verify": "pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
-    "prettier": "^3.6.0",
-    "turbo": "^2.5.0",
-    "typescript": "^5.8.0"
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.11",
+    "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "11.1.1"
+    }
   }
 }
