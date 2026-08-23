@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/personal-health-record.ts"
+    ".": "./src/personal-health-record.ts",
+    "./ancestry-export": "./src/ancestry-export.ts"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",

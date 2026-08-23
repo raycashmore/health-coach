@@ -40,3 +40,5 @@ docs/superpowers/
 # Editor and operating-system files
 .DS_Store
 .vercel
+
+sources/

@@ -11,6 +11,9 @@
     "dev": "turbo run dev --parallel",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "import:ancestry:local": "tsx scripts/import-ancestry.ts --target local",
+    "import:ancestry:production": "tsx scripts/import-ancestry.ts --target production",
+    "supabase:owner": "tsx scripts/bootstrap-local-owner.ts",
     "supabase:start": "supabase start >/dev/null && pnpm supabase:env",
     "supabase:env": "supabase status -o json | node scripts/write-local-supabase-env.mjs",
     "supabase:stop": "supabase stop",
@@ -19,8 +22,10 @@
     "verify": "pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "prettier": "^3.9.6",
     "supabase": "^2.115.0",
+    "tsx": "^4.23.12",
     "turbo": "^2.10.11",
     "typescript": "^7.0.2"
   },

@@ -23,7 +23,9 @@ export const sourceCoverageSchema = z.object({
 
 export const geneticVariantSchema = z.object({
   rsid: z.string().regex(/^rs\d+$/i),
-  genotype: z.string().regex(/^[ACGT-]{1,2}$/i),
+  chromosome: z.string().min(1),
+  position: z.number().int().positive(),
+  genotype: z.string().regex(/^[A-Z0-9-]{1,2}$/i),
   genomeBuild: z.string().min(1).optional(),
   source: sourceMetadataSchema
 });
