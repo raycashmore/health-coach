@@ -1,0 +1,15 @@
+# Dependencies & lockfiles
+node_modules
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Build output
+**/dist
+**/build
+**/.next
+**/.output
+**/.turbo
+
+# Generated code
+**/next-env.d.ts

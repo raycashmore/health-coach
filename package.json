@@ -9,10 +9,14 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "verify": "pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
+    "prettier": "^3.6.0",
     "turbo": "^2.5.0",
     "typescript": "^5.8.0"
   }
