@@ -9,6 +9,7 @@ dist/
 .next/
 coverage/
 *.tsbuildinfo
+.vercel/
 
 # Expo / React Native
 .expo/
@@ -38,3 +39,4 @@ docs/superpowers/
 
 # Editor and operating-system files
 .DS_Store
+.vercel

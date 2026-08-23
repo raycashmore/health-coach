@@ -11,12 +11,16 @@
     "dev": "turbo run dev --parallel",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "supabase:start": "supabase start >/dev/null && pnpm supabase:env",
+    "supabase:env": "supabase status -o json | node scripts/write-local-supabase-env.mjs",
+    "supabase:stop": "supabase stop",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "verify": "pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "prettier": "^3.9.6",
+    "supabase": "^2.115.0",
     "turbo": "^2.10.11",
     "typescript": "^7.0.2"
   },

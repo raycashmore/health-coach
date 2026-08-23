@@ -10,6 +10,7 @@ yarn.lock
 **/.next
 **/.output
 **/.turbo
+supabase/.temp
 
 # Generated code
 **/next-env.d.ts

@@ -31,7 +31,7 @@ More detail is in [docs/architecture.md](docs/architecture.md). The monorepo dec
 
 ## Local development
 
-Prerequisites: Node 22+ and pnpm.
+Prerequisites: Node 22.13+, pnpm, and Docker Desktop for local Supabase development.
 
 ```bash
 pnpm install
@@ -40,6 +40,15 @@ pnpm test
 pnpm --filter @health-coach/web dev
 pnpm --filter @health-coach/mobile android
 ```
+
+To run the local Supabase stack, start Docker Desktop, then run:
+
+```bash
+pnpm supabase:start
+pnpm supabase:stop
+```
+
+`pnpm supabase:start` starts the local Docker services and writes their credentials to the ignored `apps/web/.env.local`. Vercel CLI may maintain hosted deployment credentials in the ignored root `.env.local`; do not copy either file into version control.
 
 ## Deliberate boundaries
 
