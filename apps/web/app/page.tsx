@@ -1,5 +1,7 @@
 import { sourceKinds } from '@health-coach/health-core';
 
+import { IScreenUploadForm } from './i-screen-upload-form';
+
 export default function IntakeHome() {
   return (
     <main>
@@ -10,6 +12,7 @@ export default function IntakeHome() {
         Health Record, then discard the originals.
       </p>
       <p>Supported intake sources: {sourceKinds.slice(0, 2).join(' and ')}.</p>
+      <IScreenUploadForm />
     </main>
   );
 }

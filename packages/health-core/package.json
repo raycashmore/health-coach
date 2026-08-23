@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/personal-health-record.ts",
-    "./ancestry-export": "./src/ancestry-export.ts"
+    "./ancestry-export": "./src/ancestry-export.ts",
+    "./i-screen-report": "./src/i-screen-report.ts"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
