@@ -6,7 +6,7 @@
   "exports": {
     ".": "./src/personal-health-record.ts",
     "./ancestry-export": "./src/ancestry-export.ts",
-    "./i-screen-report": "./src/i-screen-report.ts"
+    "./i-screen-json": "./src/i-screen-json.ts"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",

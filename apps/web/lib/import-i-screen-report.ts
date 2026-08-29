@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@supabase/supabase-js';
-import type { IScreenLabResult } from '@health-coach/health-core/i-screen-report';
+import type { IScreenJsonLabResult } from '@health-coach/health-core/i-screen-json';
 
 type IScreenImportReceipt = {
   importedObservationCount: number;
@@ -19,7 +19,7 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-export async function importIScreenReport(results: IScreenLabResult[]): Promise<IScreenImportReceipt> {
+export async function importIScreenReport(results: IScreenJsonLabResult[]): Promise<IScreenImportReceipt> {
   const supabaseUrl = requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL');
   const serviceRoleKey = requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY');
   const ownerId = requiredEnvironment('HEALTH_RECORD_OWNER_ID');
