@@ -72,9 +72,8 @@ export async function importIScreenReport(results: IScreenJsonLabResult[]): Prom
     throw new Error('Unable to save I-Screen source coverage.');
   }
 
-  const { error: observationError } = await client.from('health_observations').upsert(
+  const { error: labResultError } = await client.from('lab_results').upsert(
     results.map((result) => ({
-      kind: 'lab-result',
       numeric_value: result.value,
       owner_id: ownerId,
       recorded_at: result.recordedAt,
@@ -86,7 +85,7 @@ export async function importIScreenReport(results: IScreenJsonLabResult[]): Prom
     { onConflict: 'source_id,test_name,recorded_at' }
   );
 
-  if (observationError) {
+  if (labResultError) {
     throw new Error('Unable to save normalized I-Screen observations.');
   }
 

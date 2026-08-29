@@ -30,8 +30,7 @@ export const geneticVariantSchema = z.object({
   source: sourceMetadataSchema
 });
 
-export const bloodPressureObservationSchema = z.object({
-  kind: z.literal('blood-pressure'),
+export const bloodPressureReadingSchema = z.object({
   systolicMmhg: z.number().int().positive(),
   diastolicMmhg: z.number().int().positive(),
   pulseBpm: z.number().int().positive().optional(),
@@ -39,8 +38,7 @@ export const bloodPressureObservationSchema = z.object({
   source: sourceMetadataSchema
 });
 
-export const labResultObservationSchema = z.object({
-  kind: z.literal('lab-result'),
+export const labResultSchema = z.object({
   testName: z.string().min(1),
   value: z.number(),
   unit: z.string().min(1),
@@ -48,11 +46,6 @@ export const labResultObservationSchema = z.object({
   recordedAt: z.string().datetime(),
   source: sourceMetadataSchema
 });
-
-export const healthObservationSchema = z.discriminatedUnion('kind', [
-  bloodPressureObservationSchema,
-  labResultObservationSchema
-]);
 
 export const providerInterpretationSchema = z.object({
   source: sourceMetadataSchema,
@@ -74,6 +67,7 @@ export const supplementRegimenSchema = z.object({
 export type SourceMetadata = z.infer<typeof sourceMetadataSchema>;
 export type SourceCoverage = z.infer<typeof sourceCoverageSchema>;
 export type GeneticVariant = z.infer<typeof geneticVariantSchema>;
-export type HealthObservation = z.infer<typeof healthObservationSchema>;
+export type BloodPressureReading = z.infer<typeof bloodPressureReadingSchema>;
+export type LabResult = z.infer<typeof labResultSchema>;
 export type ProviderInterpretation = z.infer<typeof providerInterpretationSchema>;
 export type SupplementRegimen = z.infer<typeof supplementRegimenSchema>;

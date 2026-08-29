@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bloodPressureObservationSchema, providerInterpretationSchema } from './personal-health-record.js';
+import { bloodPressureReadingSchema, labResultSchema, providerInterpretationSchema } from './personal-health-record.js';
 
 const ownerEnteredSource = {
   provider: 'owner',
@@ -11,11 +11,23 @@ const ownerEnteredSource = {
 };
 
 describe('Personal Health Record contracts', () => {
-  it('accepts a source-backed blood-pressure observation', () => {
-    const result = bloodPressureObservationSchema.safeParse({
-      kind: 'blood-pressure',
+  it('accepts a source-backed blood-pressure reading', () => {
+    const result = bloodPressureReadingSchema.safeParse({
       systolicMmhg: 120,
       diastolicMmhg: 80,
+      recordedAt: '2026-08-22T09:00:00.000Z',
+      source: ownerEnteredSource
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a source-backed lab result', () => {
+    const result = labResultSchema.safeParse({
+      testName: 'Example marker',
+      value: 12.5,
+      unit: 'unit/L',
+      referenceRange: '5 - 15',
       recordedAt: '2026-08-22T09:00:00.000Z',
       source: ownerEnteredSource
     });
