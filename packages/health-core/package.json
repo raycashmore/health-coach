@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/personal-health-record.ts"
+    ".": "./src/personal-health-record.ts",
+    "./ancestry-export": "./src/ancestry-export.ts",
+    "./i-screen-json": "./src/i-screen-json.ts"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
@@ -12,9 +14,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "^3.24.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.11"
   }
 }

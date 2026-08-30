@@ -9,13 +9,15 @@
   },
   "dependencies": {
     "@health-coach/health-core": "workspace:*",
+    "@supabase/supabase-js": "^2.112.3",
     "next": "^16.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4"
   }
 }

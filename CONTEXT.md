@@ -56,6 +56,10 @@ _Avoid_: Medical record, data lake
 A source-backed measurement or event tied to a point or period in time, such as a lab result, blood-pressure reading, sleep record, or exercise session.
 _Avoid_: Fact, metric
 
+**Genetic Variant**:
+A source-backed record of the owner's called genotype at an identified genomic position. It is raw personal evidence that may inform a Genetic Topic Panel, not an interpretation or diagnosis.
+_Avoid_: Genetic result, genetic finding
+
 **Provider Interpretation**:
 An attributed claim, explanation, or recommendation extracted from a third-party health or genetic report. It is source material to weigh against independent evidence, not a canonical Health Observation or a confirmed conclusion.
 _Avoid_: Genetic fact, diagnosis, verified finding
