@@ -50,7 +50,46 @@ pnpm supabase:stop
 
 `pnpm supabase:start` starts the local Docker services and writes their credentials to the ignored `apps/web/.env.local`. Vercel CLI may maintain hosted deployment credentials in the ignored root `.env.local`; do not copy either file into version control.
 
-For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in an ignored mobile environment file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
+For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `apps/mobile/.env.local` file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
+
+### Local Android sign-in
+
+The email/password screen is a local-development bridge. It creates one test-only
+account, `owner@local.invalid`; it is not the production auth design.
+
+1. Start local Supabase, then set a throwaway password in the ignored
+   `apps/web/.env.local` file:
+
+   ```dotenv
+   LOCAL_OWNER_PASSWORD=choose-a-local-only-password
+   ```
+
+2. Bootstrap (or update) the local owner. The password is never printed:
+
+   ```bash
+   pnpm supabase:owner
+   ```
+
+3. Configure the ignored `apps/mobile/.env.local` file. For an Android
+   emulator, use:
+
+   ```dotenv
+   EXPO_PUBLIC_SUPABASE_URL=http://10.0.2.2:54321
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=the-anon-key-from-apps-web-env-local
+   ```
+
+   On a physical Android device, replace `10.0.2.2` with the Mac's LAN IP
+   address. Do not put the service-role key, owner ID, or password in this file.
+
+4. Start Expo with a cleared bundle cache, then sign in as
+   `owner@local.invalid` with that local-only password:
+
+   ```bash
+   pnpm --filter @health-coach/mobile dev -- --clear
+   ```
+
+Production authentication will use Google Sign-In, Supabase Auth/RLS, and
+platform-secure session storage.
 
 ### Database migrations
 
