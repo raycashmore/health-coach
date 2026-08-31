@@ -55,8 +55,12 @@ export type IronRegulationPanelResult = {
 };
 
 export const healthInvestigationSummarySchema = z.object({
+  citationReferences: z.array(z.string().min(1)),
   createdAt: z.string().datetime(),
   id: z.string().uuid(),
+  panelId: z.literal(ironRegulationPanelId),
+  panelVersion: z.literal(ironRegulationPanelVersion),
+  personalEvidenceCount: z.number().int().nonnegative(),
   resultType: z.enum(ironRegulationResultTypes),
   summary: z.string().min(1)
 });
@@ -64,8 +68,12 @@ export const healthInvestigationSummarySchema = z.object({
 export type HealthInvestigationSummary = z.infer<typeof healthInvestigationSummarySchema>;
 
 export const healthInvestigationDatabaseRowSchema = z.object({
+  citation_references: z.array(z.string().min(1)),
   created_at: z.string().datetime(),
   id: z.string().uuid(),
+  panel_id: z.literal(ironRegulationPanelId),
+  panel_version: z.literal(ironRegulationPanelVersion),
+  personal_evidence_references: z.array(z.string().uuid()),
   result_type: z.enum(ironRegulationResultTypes),
   summary: z.string().min(1)
 });
@@ -74,8 +82,12 @@ export function toHealthInvestigationSummary(value: unknown): HealthInvestigatio
   const row = healthInvestigationDatabaseRowSchema.parse(value);
 
   return {
+    citationReferences: row.citation_references,
     createdAt: row.created_at,
     id: row.id,
+    panelId: row.panel_id,
+    panelVersion: row.panel_version,
+    personalEvidenceCount: row.personal_evidence_references.length,
     resultType: row.result_type,
     summary: row.summary
   };

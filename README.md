@@ -119,6 +119,12 @@ pnpm supabase:owner
 pnpm import:ancestry:local
 ```
 
+After each Ancestry import, the app evaluates the single bounded iron-regulation panel. It only stores a Health Review when the imported data meets the panel's deliberately narrow eligibility criteria; missing or out-of-scope data is not treated as a negative result. To re-run the current local record without importing again:
+
+```sh
+pnpm review:iron-regulation:local
+```
+
 The importer saves normalized variants and source provenance only; it does not retain the export. To import the same normalized data into the hosted project after reviewing it locally, configure that project's owner UUID in ignored root `.env.local` and run `pnpm import:ancestry:production`.
 
 Before either import, explicitly set `ANCESTRY_GENOME_BUILD` to `GRCh37` or `GRCh38` in that ignored environment file only after validating the export metadata. The importer refuses an unknown build rather than guessing it.

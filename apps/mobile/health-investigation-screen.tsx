@@ -47,7 +47,9 @@ export function HealthInvestigationScreen() {
       await Promise.all([
         supabase
           .from('health_investigations')
-          .select('id, result_type, summary, created_at')
+          .select(
+            'citation_references, created_at, id, panel_id, panel_version, personal_evidence_references, result_type, summary'
+          )
           .eq('owner_id', data.user.id)
           .is('superseded_at', null)
           .order('created_at', { ascending: false })
@@ -170,6 +172,15 @@ function InvestigationResult({
       </View>
       <Text style={styles.investigationTitle}>{investigation.resultType.replaceAll('-', ' ')}</Text>
       <Text style={styles.body}>{investigation.summary}</Text>
+      <View style={styles.provenanceCard}>
+        <Text style={styles.cardTitle}>Why this was surfaced</Text>
+        <Text style={styles.cardBody}>
+          {investigation.panelId.replaceAll('-', ' ')} panel v{investigation.panelVersion} reviewed{' '}
+          {investigation.personalEvidenceCount} private{' '}
+          {investigation.personalEvidenceCount === 1 ? 'record' : 'records'}.
+        </Text>
+        <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
+      </View>
       <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
     </View>
   );
@@ -194,6 +205,7 @@ const styles = StyleSheet.create({
     padding: 12
   },
   investigationTitle: { color: '#1d1d20', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 28 },
+  provenanceCard: { backgroundColor: '#f2f2ef', borderRadius: 12, marginTop: 20, padding: 18 },
   reviewCard: { backgroundColor: '#eef5ef', borderRadius: 12, marginTop: 24, padding: 18 },
   status: { color: '#39734f', fontSize: 15, fontWeight: '600', marginTop: 28 },
   title: { color: '#1d1d20', fontSize: 30, fontWeight: '700', lineHeight: 38, marginTop: 12 }

@@ -8,6 +8,8 @@ import { genomeBuildSchema } from '@health-coach/health-core';
 import { parseAncestryExportRow } from '@health-coach/health-core/ancestry-export';
 import { createClient } from '@supabase/supabase-js';
 
+import { runIronRegulationReview } from '../apps/web/lib/run-iron-regulation-review';
+
 const ancestrySourcePath = resolve(process.cwd(), 'sources/AncestryDNA.txt');
 const batchSize = 500;
 
@@ -157,7 +159,14 @@ async function main(): Promise<void> {
 
   await flushVariants(variants, client);
   importedVariantCount += variants.length;
+
+  const reviewOutcome = await runIronRegulationReview();
   console.log(`Imported ${importedVariantCount} normalized Ancestry variants; skipped ${noCallCount} no-call rows.`);
+  console.log(
+    reviewOutcome === 'stored'
+      ? 'Stored the bounded iron-regulation Health Review.'
+      : 'No bounded iron-regulation Health Review was applicable to this import.'
+  );
 }
 
 main().catch((error: unknown) => {

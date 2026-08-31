@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { evaluateIronRegulationPanel } from './iron-regulation-panel.js';
+import { evaluateIronRegulationPanel, toHealthInvestigationSummary } from './iron-regulation-panel.js';
 
 describe('evaluateIronRegulationPanel', () => {
   it('fails closed when the apparent C282Y call is direct-to-consumer only', () => {
@@ -42,5 +42,29 @@ describe('evaluateIronRegulationPanel', () => {
         ironStudyCorroboration: 'missing'
       })
     ).toThrow('known genome build');
+  });
+
+  it('maps a persisted review to an owner-safe evidence summary', () => {
+    expect(
+      toHealthInvestigationSummary({
+        citation_references: ['Example guideline'],
+        created_at: '2026-08-31T10:00:00.000Z',
+        id: '00000000-0000-4000-8000-000000000002',
+        panel_id: 'iron-regulation',
+        panel_version: '1.0',
+        personal_evidence_references: ['00000000-0000-4000-8000-000000000001'],
+        result_type: 'data-quality-follow-up',
+        summary: 'A carefully bounded, non-diagnostic summary.'
+      })
+    ).toEqual({
+      citationReferences: ['Example guideline'],
+      createdAt: '2026-08-31T10:00:00.000Z',
+      id: '00000000-0000-4000-8000-000000000002',
+      panelId: 'iron-regulation',
+      panelVersion: '1.0',
+      personalEvidenceCount: 1,
+      resultType: 'data-quality-follow-up',
+      summary: 'A carefully bounded, non-diagnostic summary.'
+    });
   });
 });
