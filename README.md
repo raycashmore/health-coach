@@ -50,6 +50,8 @@ pnpm supabase:stop
 
 `pnpm supabase:start` starts the local Docker services and writes their credentials to the ignored `apps/web/.env.local`. Vercel CLI may maintain hosted deployment credentials in the ignored root `.env.local`; do not copy either file into version control.
 
+For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in an ignored mobile environment file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
+
 ### Private Ancestry import
 
 Create the generic local-only owner, then keep an Ancestry export only in the ignored `sources/AncestryDNA.txt` path and run:
@@ -60,6 +62,10 @@ pnpm import:ancestry:local
 ```
 
 The importer saves normalized variants and source provenance only; it does not retain the export. To import the same normalized data into the hosted project after reviewing it locally, configure that project's owner UUID in ignored root `.env.local` and run `pnpm import:ancestry:production`.
+
+Before either import, explicitly set `ANCESTRY_GENOME_BUILD` to `GRCh37` or `GRCh38` in that ignored environment file only after validating the export metadata. The importer refuses an unknown build rather than guessing it.
+
+An I-Screen import also starts the bounded iron-regulation Health Review. The review reads only the `rs1800562` call needed by the curated panel; a direct-to-consumer call can produce only a confirmation-oriented result, never a diagnosis or treatment advice. To rerun it after importing Ancestry data, make an authenticated `POST` request to `/api/health-reviews/iron-regulation`.
 
 ## Deliberate boundaries
 

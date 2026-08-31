@@ -4,6 +4,10 @@ export const sourceKinds = ['genetic-export', 'provider-report', 'owner-entry'] 
 
 export const verificationStates = ['unverified', 'parsed', 'verified'] as const;
 
+export const genomeBuilds = ['GRCh37', 'GRCh38'] as const;
+
+export const genomeBuildSchema = z.enum(genomeBuilds);
+
 export const sourceMetadataSchema = z.object({
   provider: z.string().min(1),
   sourceIdentifier: z.string().min(1),
@@ -26,7 +30,7 @@ export const geneticVariantSchema = z.object({
   chromosome: z.string().min(1),
   position: z.number().int().positive(),
   genotype: z.string().regex(/^[A-Z0-9-]{1,2}$/i),
-  genomeBuild: z.string().min(1).optional(),
+  genomeBuild: genomeBuildSchema.optional(),
   source: sourceMetadataSchema
 });
 

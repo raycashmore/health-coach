@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { bloodPressureReadingSchema, labResultSchema, providerInterpretationSchema } from './personal-health-record.js';
+import {
+  bloodPressureReadingSchema,
+  geneticVariantSchema,
+  labResultSchema,
+  providerInterpretationSchema
+} from './personal-health-record.js';
 
 const ownerEnteredSource = {
   provider: 'owner',
@@ -60,5 +65,28 @@ describe('Personal Health Record contracts', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('allows only explicit supported genome builds for genetic variants', () => {
+    expect(
+      geneticVariantSchema.safeParse({
+        chromosome: '6',
+        genomeBuild: 'GRCh37',
+        genotype: 'AA',
+        position: 26093141,
+        rsid: 'rs1800562',
+        source: ownerEnteredSource
+      }).success
+    ).toBe(true);
+    expect(
+      geneticVariantSchema.safeParse({
+        chromosome: '6',
+        genomeBuild: 'unverified-build',
+        genotype: 'AA',
+        position: 26093141,
+        rsid: 'rs1800562',
+        source: ownerEnteredSource
+      }).success
+    ).toBe(false);
   });
 });

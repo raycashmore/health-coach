@@ -35,6 +35,9 @@ importers:
       '@health-coach/health-core':
         specifier: workspace:*
         version: link:../../packages/health-core
+      '@supabase/supabase-js':
+        specifier: ^2.112.3
+        version: 2.112.3
       expo:
         specifier: ^57.0.15
         version: 57.0.15(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.2.8(react@19.2.3))(react-native@0.86.2(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
