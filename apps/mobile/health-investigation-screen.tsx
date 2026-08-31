@@ -21,8 +21,20 @@ type ScreenState =
   | { kind: 'signed-out' }
   | { kind: 'signing-in' }
   | { kind: 'loading' }
-  | { kind: 'ready'; investigation: HealthInvestigationSummary | null; sourceCount: number }
+  | {
+      kind: 'ready';
+      evidenceSources: EvidenceSource[];
+      investigation: HealthInvestigationSummary | null;
+      sourceCount: number;
+    }
   | { kind: 'error'; message: string };
+
+type EvidenceSource = {
+  id: string;
+  importedAt: string;
+  provider: string;
+  verificationState: string;
+};
 
 export function HealthInvestigationScreen() {
   const [email, setEmail] = useState('');
@@ -64,9 +76,29 @@ export function HealthInvestigationScreen() {
     }
 
     try {
+      const review = investigation ? toHealthInvestigationSummary(investigation) : null;
+      const { data: evidenceSources, error: evidenceSourcesError } = review
+        ? await supabase
+            .from('health_sources')
+            .select('id, imported_at, provider, verification_state')
+            .eq('owner_id', data.user.id)
+            .in('id', review.personalEvidenceReferenceIds)
+        : { data: [], error: null };
+
+      if (evidenceSourcesError) {
+        setState({ kind: 'error', message: 'Your Health Investigation evidence could not be loaded.' });
+        return;
+      }
+
       setState({
         kind: 'ready',
-        investigation: investigation ? toHealthInvestigationSummary(investigation) : null,
+        evidenceSources: (evidenceSources ?? []).map((source) => ({
+          id: source.id,
+          importedAt: source.imported_at,
+          provider: source.provider,
+          verificationState: source.verification_state
+        })),
+        investigation: review,
         sourceCount: sourceCount ?? 0
       });
     } catch {
@@ -79,7 +111,13 @@ export function HealthInvestigationScreen() {
   }
 
   if (state.kind === 'ready') {
-    return <InvestigationResult investigation={state.investigation} sourceCount={state.sourceCount} />;
+    return (
+      <InvestigationResult
+        evidenceSources={state.evidenceSources}
+        investigation={state.investigation}
+        sourceCount={state.sourceCount}
+      />
+    );
   }
 
   const isBusy = state.kind === 'signing-in' || state.kind === 'loading';
@@ -137,9 +175,11 @@ function ConfigurationNeeded() {
 }
 
 function InvestigationResult({
+  evidenceSources,
   investigation,
   sourceCount
 }: {
+  evidenceSources: EvidenceSource[];
   investigation: HealthInvestigationSummary | null;
   sourceCount: number;
 }) {
@@ -179,6 +219,11 @@ function InvestigationResult({
           {investigation.personalEvidenceCount} private{' '}
           {investigation.personalEvidenceCount === 1 ? 'record' : 'records'}.
         </Text>
+        {evidenceSources.map((source) => (
+          <Text key={source.id} style={styles.cardBody}>
+            Source: {source.provider}, {source.verificationState}, imported {source.importedAt.slice(0, 10)}.
+          </Text>
+        ))}
         <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
       </View>
       <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>

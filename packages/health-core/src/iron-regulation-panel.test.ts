@@ -63,6 +63,7 @@ describe('evaluateIronRegulationPanel', () => {
       panelId: 'iron-regulation',
       panelVersion: '1.0',
       personalEvidenceCount: 1,
+      personalEvidenceReferenceIds: ['00000000-0000-4000-8000-000000000001'],
       resultType: 'data-quality-follow-up',
       summary: 'A carefully bounded, non-diagnostic summary.'
     });

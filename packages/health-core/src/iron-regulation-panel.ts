@@ -61,6 +61,7 @@ export const healthInvestigationSummarySchema = z.object({
   panelId: z.literal(ironRegulationPanelId),
   panelVersion: z.literal(ironRegulationPanelVersion),
   personalEvidenceCount: z.number().int().nonnegative(),
+  personalEvidenceReferenceIds: z.array(z.string().uuid()),
   resultType: z.enum(ironRegulationResultTypes),
   summary: z.string().min(1)
 });
@@ -88,6 +89,7 @@ export function toHealthInvestigationSummary(value: unknown): HealthInvestigatio
     panelId: row.panel_id,
     panelVersion: row.panel_version,
     personalEvidenceCount: row.personal_evidence_references.length,
+    personalEvidenceReferenceIds: row.personal_evidence_references,
     resultType: row.result_type,
     summary: row.summary
   };
