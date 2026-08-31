@@ -52,6 +52,25 @@ pnpm supabase:stop
 
 For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in an ignored mobile environment file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
 
+### Database migrations
+
+Schema changes are committed as ordered SQL migrations under `supabase/migrations`.
+
+```sh
+# Create and then edit a new migration.
+pnpm supabase:migration:new add_health_follow_ups
+
+# Apply pending migrations to a running local database without resetting its data.
+pnpm supabase:migrate:local
+
+# Rebuild a disposable local database from every migration and verify that the chain is reproducible.
+pnpm supabase:reset
+```
+
+`pnpm supabase:verify` starts Supabase and resets the local database; CI runs it on every pull request and `main` push. It is intentionally destructive, so use it only against local synthetic or disposable data—not the private Personal Health Record.
+
+Production migrations run only through the manual **Deploy Supabase migrations** GitHub Actions workflow. Before its first use, create a protected `production` GitHub environment and set its `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` secrets. The workflow requires typing `deploy`, previews the pending migration set, and then runs `supabase db push`; it never resets the production database.
+
 ### Private Ancestry import
 
 Create the generic local-only owner, then keep an Ancestry export only in the ignored `sources/AncestryDNA.txt` path and run:
