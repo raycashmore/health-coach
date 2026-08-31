@@ -1,12 +1,15 @@
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { HealthInvestigationScreen } from './health-investigation-screen';
 
 export function App() {
   return (
-    <SafeAreaView style={styles.screen}>
-      <HealthInvestigationScreen />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.screen}>
+        <HealthInvestigationScreen />
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
