@@ -42,3 +42,6 @@ docs/superpowers/
 .vercel
 
 sources/
+supabase/.temp
+supabase/.branches
+supabase/.local
