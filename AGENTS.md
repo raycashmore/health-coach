@@ -2,6 +2,14 @@
 
 Health Coach is a private, single-owner advisory health agent that turns longitudinal health data into explainable, risk-calibrated recommendations.
 
+## Planning source
+
+Linear is the planning-system source of truth. Before choosing or starting the
+next feature, inspect the Wayfinding map **RAY-93** and the active items in the
+**Health coach** Linear project. Read the linked decision documents for the
+selected item; do not substitute GitHub Projects or infer a roadmap from commit
+history when Linear is available.
+
 - Use Node.js 22+ and pnpm 10 (`pnpm`); this is a Turborepo monorepo.
 - Treat all tracked files and Git history as public: never commit personal health data, identifying information, credentials, tokens, source reports, screenshots, or real evaluation content.
 - Read the applicable guidance before work in that area:

@@ -2,20 +2,11 @@ import {
   toHealthInvestigationSummary,
   type HealthInvestigationSummary
 } from '@health-coach/health-core/iron-regulation-panel';
-import { createClient } from '@supabase/supabase-js';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { beginRefresh, failRefresh } from './health-investigation-refresh-state';
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
-      })
-    : null;
+import { HealthRecordEditor } from './health-record-editor';
+import { supabase } from './supabase-client';
 
 type ScreenState =
   | { kind: 'configuration-needed' }
@@ -152,6 +143,7 @@ export function HealthInvestigationScreen() {
         investigation={state.investigation}
         isRefreshing={state.isRefreshing}
         onRefresh={refreshReview}
+        ownerId={state.ownerId}
         refreshError={state.refreshError}
         sourceCount={state.sourceCount}
       />
@@ -162,7 +154,7 @@ export function HealthInvestigationScreen() {
   const errorMessage = state.kind === 'error' ? state.message : null;
 
   return (
-    <View style={styles.content}>
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.eyebrow}>HEALTH INVESTIGATION</Text>
       <Text style={styles.title}>Sign in to view your private record.</Text>
       <Text style={styles.body}>
@@ -195,20 +187,20 @@ export function HealthInvestigationScreen() {
       <Pressable accessibilityRole="button" disabled={isBusy} onPress={signIn} style={styles.button}>
         {isBusy ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Sign in</Text>}
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 function ConfigurationNeeded() {
   return (
-    <View style={styles.content}>
+    <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>HEALTH INVESTIGATION</Text>
       <Text style={styles.title}>Private connection required.</Text>
       <Text style={styles.body}>
         Configure the public Supabase URL and anonymous key in the app environment. Owner credentials and service keys
         never belong in the app bundle.
       </Text>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -217,6 +209,7 @@ function InvestigationResult({
   investigation,
   isRefreshing,
   onRefresh,
+  ownerId,
   refreshError,
   sourceCount
 }: {
@@ -224,6 +217,7 @@ function InvestigationResult({
   investigation: HealthInvestigationSummary | null;
   isRefreshing: boolean;
   onRefresh: () => Promise<void>;
+  ownerId: string;
   refreshError: string | null;
   sourceCount: number;
 }) {
@@ -234,7 +228,7 @@ function InvestigationResult({
 
   if (!investigation) {
     return (
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>HEALTH REVIEW</Text>
         <Text style={styles.title}>Your private record is ready.</Text>
         <View style={styles.reviewCard}>
@@ -243,12 +237,13 @@ function InvestigationResult({
           <Text style={styles.cardBody}>No Health Investigation has been surfaced yet.</Text>
         </View>
         <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
-      </View>
+        <HealthRecordEditor key={ownerId} ownerId={ownerId} />
+      </ScrollView>
     );
   }
 
   return (
-    <View style={styles.content}>
+    <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>HEALTH REVIEW</Text>
       <Text style={styles.title}>Your latest investigation</Text>
       <View style={styles.reviewCard}>
@@ -256,6 +251,7 @@ function InvestigationResult({
         <Text style={styles.cardBody}>{sourceStatus}</Text>
       </View>
       <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
+      <HealthRecordEditor key={ownerId} ownerId={ownerId} />
       <Text style={styles.investigationTitle}>{investigation.resultType.replaceAll('-', ' ')}</Text>
       <Text style={styles.body}>{investigation.summary}</Text>
       <View style={styles.provenanceCard}>
@@ -273,7 +269,7 @@ function InvestigationResult({
         <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
       </View>
       <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
-    </View>
+    </ScrollView>
   );
 }
 
