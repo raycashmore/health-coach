@@ -7,6 +7,16 @@ import { createClient } from '@supabase/supabase-js';
 const localEnvironmentPath = resolve(process.cwd(), 'apps/web/.env.local');
 const localOwnerEmail = 'owner@local.invalid';
 
+function localOwnerPassword(): string {
+  const password = process.env.LOCAL_OWNER_PASSWORD;
+
+  if (!password) {
+    throw new Error('LOCAL_OWNER_PASSWORD must be set in apps/web/.env.local before bootstrapping the local owner.');
+  }
+
+  return password;
+}
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
 
@@ -34,6 +44,7 @@ async function main(): Promise<void> {
     requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+  const password = localOwnerPassword();
   const { data: existingUsers, error: usersError } = await client.auth.admin.listUsers();
 
   if (usersError) {
@@ -41,21 +52,21 @@ async function main(): Promise<void> {
   }
 
   const existingOwner = existingUsers.users.find((user) => user.email === localOwnerEmail);
-  const { data: createdOwner, error: createError } = existingOwner
-    ? { data: { user: existingOwner }, error: null }
+  const { data: ownerResult, error: ownerError } = existingOwner
+    ? await client.auth.admin.updateUserById(existingOwner.id, { password })
     : await client.auth.admin.createUser({
         email: localOwnerEmail,
-        password: crypto.randomUUID(),
+        password,
         email_confirm: true
       });
 
-  if (createError || !createdOwner.user) {
-    throw new Error(`Unable to create the local health-record owner: ${createError?.message ?? 'no user returned'}`);
+  if (ownerError || !ownerResult.user) {
+    throw new Error(`Unable to configure the local health-record owner: ${ownerError?.message ?? 'no user returned'}`);
   }
 
   const environmentContents = await readFile(localEnvironmentPath, 'utf8');
-  await writeFile(localEnvironmentPath, withOwnerId(environmentContents, createdOwner.user.id));
-  console.log('Local health-record owner configured.');
+  await writeFile(localEnvironmentPath, withOwnerId(environmentContents, ownerResult.user.id));
+  console.log('Local health-record owner is ready for sign-in.');
 }
 
 main().catch((error: unknown) => {

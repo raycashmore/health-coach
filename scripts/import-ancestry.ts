@@ -4,8 +4,11 @@ import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import process from 'node:process';
 
+import { genomeBuildSchema } from '@health-coach/health-core';
 import { parseAncestryExportRow } from '@health-coach/health-core/ancestry-export';
 import { createClient } from '@supabase/supabase-js';
+
+import { runIronRegulationReview } from '../apps/web/lib/run-iron-regulation-review';
 
 const ancestrySourcePath = resolve(process.cwd(), 'sources/AncestryDNA.txt');
 const batchSize = 500;
@@ -14,7 +17,7 @@ type ImportTarget = 'local' | 'production';
 
 type VariantInsert = {
   chromosome: string;
-  genome_build: null;
+  genome_build: 'GRCh37' | 'GRCh38';
   genotype: string;
   owner_id: string;
   position: number;
@@ -49,6 +52,16 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
+function requiredAncestryGenomeBuild(): 'GRCh37' | 'GRCh38' {
+  const parsed = genomeBuildSchema.safeParse(process.env.ANCESTRY_GENOME_BUILD);
+
+  if (!parsed.success) {
+    throw new Error('ANCESTRY_GENOME_BUILD must be set to GRCh37 or GRCh38 after validating the export metadata.');
+  }
+
+  return parsed.data;
+}
+
 async function flushVariants(variants: VariantInsert[], client: ReturnType<typeof createClient>): Promise<void> {
   if (variants.length === 0) {
     return;
@@ -74,6 +87,7 @@ async function main(): Promise<void> {
   const supabaseUrl = requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL');
   const serviceRoleKey = requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY');
   const ownerId = requiredEnvironment('HEALTH_RECORD_OWNER_ID');
+  const genomeBuild = requiredAncestryGenomeBuild();
   const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
@@ -131,7 +145,7 @@ async function main(): Promise<void> {
 
     variants.push({
       ...result.variant,
-      genome_build: null,
+      genome_build: genomeBuild,
       owner_id: ownerId,
       source_id: source.id
     });
@@ -145,7 +159,14 @@ async function main(): Promise<void> {
 
   await flushVariants(variants, client);
   importedVariantCount += variants.length;
+
+  const reviewOutcome = await runIronRegulationReview();
   console.log(`Imported ${importedVariantCount} normalized Ancestry variants; skipped ${noCallCount} no-call rows.`);
+  console.log(
+    reviewOutcome === 'stored'
+      ? 'Stored the bounded iron-regulation Health Review.'
+      : 'No bounded iron-regulation Health Review was applicable to this import.'
+  );
 }
 
 main().catch((error: unknown) => {

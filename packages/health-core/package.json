@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/personal-health-record.ts",
     "./ancestry-export": "./src/ancestry-export.ts",
+    "./iron-regulation-panel": "./src/iron-regulation-panel.ts",
     "./i-screen-json": "./src/i-screen-json.ts"
   },
   "scripts": {

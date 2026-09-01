@@ -50,6 +50,66 @@ pnpm supabase:stop
 
 `pnpm supabase:start` starts the local Docker services and writes their credentials to the ignored `apps/web/.env.local`. Vercel CLI may maintain hosted deployment credentials in the ignored root `.env.local`; do not copy either file into version control.
 
+For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `apps/mobile/.env.local` file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
+
+### Local Android sign-in
+
+The email/password screen is a local-development bridge. It creates one test-only
+account, `owner@local.invalid`; it is not the production auth design.
+
+1. Start local Supabase, then set a throwaway password in the ignored
+   `apps/web/.env.local` file:
+
+   ```dotenv
+   LOCAL_OWNER_PASSWORD=choose-a-local-only-password
+   ```
+
+2. Bootstrap (or update) the local owner. The password is never printed:
+
+   ```bash
+   pnpm supabase:owner
+   ```
+
+3. Configure the ignored `apps/mobile/.env.local` file. For an Android
+   emulator, use:
+
+   ```dotenv
+   EXPO_PUBLIC_SUPABASE_URL=http://10.0.2.2:54321
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=the-anon-key-from-apps-web-env-local
+   ```
+
+   On a physical Android device, replace `10.0.2.2` with the Mac's LAN IP
+   address. Do not put the service-role key, owner ID, or password in this file.
+
+4. Start Expo with a cleared bundle cache, then sign in as
+   `owner@local.invalid` with that local-only password:
+
+   ```bash
+   pnpm --filter @health-coach/mobile dev -- --clear
+   ```
+
+Production authentication will use Google Sign-In, Supabase Auth/RLS, and
+platform-secure session storage.
+
+### Database migrations
+
+Schema changes are committed as ordered SQL migrations under `supabase/migrations`.
+
+```sh
+# Create and then edit a new migration.
+pnpm supabase:migration:new add_health_follow_ups
+
+# Apply pending migrations to a running local database without resetting its data.
+pnpm supabase:migrate:local
+
+# Rebuild a disposable local database from every migration and verify that the chain is reproducible.
+pnpm supabase:reset
+```
+
+`pnpm supabase:verify` starts Supabase and resets the local database; CI runs it on every pull request and `main` push. It is intentionally destructive, so use it only against local synthetic or disposable data—not the private Personal Health Record.
+
+Production migrations run only through the manual **Deploy Supabase migrations** GitHub Actions workflow. Before its first use, create a protected `production` GitHub environment and set its `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` secrets. The workflow requires typing `deploy`, previews the pending migration set, and then runs `supabase db push`; it never resets the production database.
+
 ### Private Ancestry import
 
 Create the generic local-only owner, then keep an Ancestry export only in the ignored `sources/AncestryDNA.txt` path and run:
@@ -59,7 +119,17 @@ pnpm supabase:owner
 pnpm import:ancestry:local
 ```
 
+After each Ancestry import, the app evaluates the single bounded iron-regulation panel. It only stores a Health Review when the imported data meets the panel's deliberately narrow eligibility criteria; missing or out-of-scope data is not treated as a negative result. To re-run the current local record without importing again:
+
+```sh
+pnpm review:iron-regulation:local
+```
+
 The importer saves normalized variants and source provenance only; it does not retain the export. To import the same normalized data into the hosted project after reviewing it locally, configure that project's owner UUID in ignored root `.env.local` and run `pnpm import:ancestry:production`.
+
+Before either import, explicitly set `ANCESTRY_GENOME_BUILD` to `GRCh37` or `GRCh38` in that ignored environment file only after validating the export metadata. The importer refuses an unknown build rather than guessing it.
+
+An I-Screen import also starts the bounded iron-regulation Health Review. The review reads only the `rs1800562` call needed by the curated panel; a direct-to-consumer call can produce only a confirmation-oriented result, never a diagnosis or treatment advice. To rerun it after importing Ancestry data, make an authenticated `POST` request to `/api/health-reviews/iron-regulation`.
 
 ## Deliberate boundaries
 

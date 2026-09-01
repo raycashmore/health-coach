@@ -1,0 +1,40 @@
+name: Deploy Supabase migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: Type "deploy" to apply pending migrations to production.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: inputs.confirm_production == 'deploy'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - run: pnpm exec supabase db push --linked --dry-run
+      - run: pnpm exec supabase db push --linked
