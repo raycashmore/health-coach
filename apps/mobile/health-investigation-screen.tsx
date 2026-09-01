@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
   cardBody: { color: '#55555a', fontSize: 16, lineHeight: 24, marginTop: 8 },
   cardTitle: { color: '#1d1d20', fontSize: 16, fontWeight: '700' },
-  content: { flex: 1, justifyContent: 'center', padding: 28 },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 28 },
   eyebrow: { color: '#39734f', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
   error: { color: '#9d1c1c', fontSize: 15, marginTop: 12 },
   input: {
