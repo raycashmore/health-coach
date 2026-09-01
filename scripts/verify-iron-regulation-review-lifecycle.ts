@@ -1,0 +1,185 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { access, constants } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import process from 'node:process';
+
+import { createClient } from '@supabase/supabase-js';
+
+import { runIronRegulationReview } from '../apps/web/lib/run-iron-regulation-review';
+
+type Investigation = {
+  id: string;
+  input_fingerprint: string;
+  personal_evidence_references: string[];
+  result_type: string;
+  superseded_at: string | null;
+};
+
+function requiredEnvironment(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`${name} must be configured after starting local Supabase.`);
+  }
+
+  return value;
+}
+
+async function investigationsForOwner(
+  client: ReturnType<typeof createClient>,
+  ownerId: string
+): Promise<Investigation[]> {
+  const { data, error } = await client
+    .from('health_investigations')
+    .select('id, input_fingerprint, personal_evidence_references, result_type, superseded_at')
+    .eq('owner_id', ownerId)
+    .eq('panel_id', 'iron-regulation')
+    .eq('panel_version', '1.0')
+    .order('created_at');
+
+  if (error) {
+    throw new Error(`Unable to retrieve persisted Health Investigations: ${error.message}`);
+  }
+
+  return (data ?? []) as Investigation[];
+}
+
+async function insertAncestrySource(
+  client: ReturnType<typeof createClient>,
+  ownerId: string,
+  sourceIdentifier: string
+): Promise<string> {
+  const { data, error } = await client
+    .from('health_sources')
+    .insert({
+      owner_id: ownerId,
+      provider: 'AncestryDNA',
+      source_identifier: sourceIdentifier,
+      kind: 'genetic-export',
+      verification_state: 'parsed'
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Unable to create test source metadata: ${error?.message ?? 'no source returned'}`);
+  }
+
+  return data.id as string;
+}
+
+async function insertVariant(
+  client: ReturnType<typeof createClient>,
+  ownerId: string,
+  sourceId: string,
+  genotype: string
+): Promise<void> {
+  const { error } = await client.from('genetic_variants').upsert(
+    {
+      owner_id: ownerId,
+      source_id: sourceId,
+      rsid: 'rs1800562',
+      chromosome: '6',
+      position: 1,
+      genotype,
+      genome_build: 'GRCh37'
+    },
+    { onConflict: 'source_id,rsid' }
+  );
+
+  if (error) {
+    throw new Error(`Unable to save test genetic variant: ${error.message}`);
+  }
+}
+
+async function main(): Promise<void> {
+  const environmentFile = resolve(process.cwd(), 'apps/web/.env.local');
+  await access(environmentFile, constants.R_OK);
+  process.loadEnvFile(environmentFile);
+
+  const client = createClient(
+    requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL'),
+    requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const originalOwnerId = process.env.HEALTH_RECORD_OWNER_ID;
+  const testRunId = randomUUID();
+  const { data: owner, error: ownerError } = await client.auth.admin.createUser({
+    email: `integration-${testRunId}@local.invalid`,
+    password: randomUUID(),
+    email_confirm: true
+  });
+
+  if (ownerError || !owner.user) {
+    throw new Error(`Unable to create the integration-test owner: ${ownerError?.message ?? 'no owner returned'}`);
+  }
+
+  const ownerId = owner.user.id;
+  process.env.HEALTH_RECORD_OWNER_ID = ownerId;
+
+  try {
+    const firstSourceId = await insertAncestrySource(client, ownerId, `integration-source-${testRunId}-one`);
+    await insertVariant(client, ownerId, firstSourceId, 'AA');
+
+    assert.equal(await runIronRegulationReview(), 'stored');
+    const firstStored = await investigationsForOwner(client, ownerId);
+    assert.equal(firstStored.length, 1);
+    assert.equal(firstStored[0]?.result_type, 'data-quality-follow-up');
+    assert.equal(firstStored[0]?.superseded_at, null);
+    assert.deepEqual(firstStored[0]?.personal_evidence_references, [firstSourceId]);
+
+    assert.equal(await runIronRegulationReview(), 'stored');
+    const rerun = await investigationsForOwner(client, ownerId);
+    assert.equal(rerun.length, 1);
+    assert.equal(rerun[0]?.id, firstStored[0]?.id);
+    assert.equal(rerun[0]?.input_fingerprint, firstStored[0]?.input_fingerprint);
+    assert.equal(rerun[0]?.superseded_at, null);
+
+    await insertVariant(client, ownerId, firstSourceId, 'CC');
+    assert.equal(await runIronRegulationReview(), 'not-applicable');
+    const inapplicable = await investigationsForOwner(client, ownerId);
+    assert.equal(inapplicable.length, 1);
+    assert.notEqual(inapplicable[0]?.superseded_at, null);
+
+    await insertVariant(client, ownerId, firstSourceId, 'AA');
+    assert.equal(await runIronRegulationReview(), 'stored');
+    const restored = await investigationsForOwner(client, ownerId);
+    assert.equal(restored.length, 1);
+    assert.equal(restored[0]?.id, firstStored[0]?.id);
+    assert.equal(restored[0]?.superseded_at, null);
+
+    const conflictingSourceId = await insertAncestrySource(client, ownerId, `integration-source-${testRunId}-two`);
+    await insertVariant(client, ownerId, conflictingSourceId, 'CC');
+    assert.equal(await runIronRegulationReview(), 'stored');
+    const conflicting = await investigationsForOwner(client, ownerId);
+    const activeInvestigations = conflicting.filter((investigation) => investigation.superseded_at === null);
+
+    assert.equal(conflicting.length, 2);
+    assert.equal(activeInvestigations.length, 1);
+    assert.equal(activeInvestigations[0]?.result_type, 'data-quality-follow-up');
+    assert.deepEqual(
+      activeInvestigations[0]?.personal_evidence_references.sort(),
+      [firstSourceId, conflictingSourceId].sort()
+    );
+    assert.notEqual(conflicting.find((investigation) => investigation.id === firstStored[0]?.id)?.superseded_at, null);
+  } finally {
+    if (originalOwnerId) {
+      process.env.HEALTH_RECORD_OWNER_ID = originalOwnerId;
+    } else {
+      delete process.env.HEALTH_RECORD_OWNER_ID;
+    }
+
+    const { error } = await client.auth.admin.deleteUser(ownerId);
+
+    if (error) {
+      throw new Error(`Unable to remove the integration-test owner: ${error.message}`);
+    }
+  }
+}
+
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : 'The Health Review lifecycle integration check failed.';
+  console.error(message);
+  process.exitCode = 1;
+});

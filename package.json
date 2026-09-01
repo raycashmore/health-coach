@@ -21,7 +21,7 @@
     "supabase:start": "supabase start >/dev/null && pnpm supabase:env",
     "supabase:env": "supabase status -o json | node scripts/write-local-supabase-env.mjs",
     "supabase:stop": "supabase stop",
-    "supabase:verify": "pnpm supabase:start && pnpm supabase:reset",
+    "supabase:verify": "pnpm supabase:start && pnpm supabase:reset && tsx scripts/verify-iron-regulation-review-lifecycle.ts",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "verify": "pnpm format:check && pnpm typecheck && pnpm test"
