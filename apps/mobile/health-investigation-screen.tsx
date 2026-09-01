@@ -5,6 +5,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { beginRefresh, failRefresh } from './health-investigation-refresh-state';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -25,6 +26,9 @@ type ScreenState =
       kind: 'ready';
       evidenceSources: EvidenceSource[];
       investigation: HealthInvestigationSummary | null;
+      isRefreshing: boolean;
+      ownerId: string;
+      refreshError: string | null;
       sourceCount: number;
     }
   | { kind: 'error'; message: string };
@@ -55,38 +59,55 @@ export function HealthInvestigationScreen() {
     }
 
     setState({ kind: 'loading' });
-    const [{ data: investigation, error: investigationError }, { count: sourceCount, error: sourcesError }] =
-      await Promise.all([
-        supabase
-          .from('health_investigations')
-          .select(
-            'citation_references, created_at, id, panel_id, panel_version, personal_evidence_references, result_type, summary'
-          )
-          .eq('owner_id', data.user.id)
-          .is('superseded_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase.from('health_sources').select('id', { count: 'exact', head: true }).eq('owner_id', data.user.id)
-      ]);
+    await loadReview(data.user.id);
+  }
 
-    if (investigationError || sourcesError) {
-      setState({ kind: 'error', message: 'Your Health Investigation could not be loaded.' });
+  async function refreshReview(): Promise<void> {
+    if (state.kind !== 'ready') {
+      return;
+    }
+
+    setState(beginRefresh(state));
+    await loadReview(state.ownerId, true);
+  }
+
+  async function loadReview(ownerId: string, isRefresh = false): Promise<void> {
+    if (!supabase) {
       return;
     }
 
     try {
+      const [{ data: investigation, error: investigationError }, { count: sourceCount, error: sourcesError }] =
+        await Promise.all([
+          supabase
+            .from('health_investigations')
+            .select(
+              'citation_references, created_at, id, panel_id, panel_version, personal_evidence_references, result_type, summary'
+            )
+            .eq('owner_id', ownerId)
+            .is('superseded_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase.from('health_sources').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId)
+        ]);
+
+      if (investigationError || sourcesError) {
+        showLoadError(isRefresh, 'Your Health Investigation could not be loaded.');
+        return;
+      }
+
       const review = investigation ? toHealthInvestigationSummary(investigation) : null;
       const { data: evidenceSources, error: evidenceSourcesError } = review
         ? await supabase
             .from('health_sources')
             .select('id, imported_at, provider, verification_state')
-            .eq('owner_id', data.user.id)
+            .eq('owner_id', ownerId)
             .in('id', review.personalEvidenceReferenceIds)
         : { data: [], error: null };
 
       if (evidenceSourcesError) {
-        setState({ kind: 'error', message: 'Your Health Investigation evidence could not be loaded.' });
+        showLoadError(isRefresh, 'Your Health Investigation evidence could not be loaded.');
         return;
       }
 
@@ -99,11 +120,25 @@ export function HealthInvestigationScreen() {
           verificationState: source.verification_state
         })),
         investigation: review,
+        isRefreshing: false,
+        ownerId,
+        refreshError: null,
         sourceCount: sourceCount ?? 0
       });
     } catch {
-      setState({ kind: 'error', message: 'Your Health Investigation has an invalid record.' });
+      showLoadError(isRefresh, 'Your Health Investigation has an invalid record.');
     }
+  }
+
+  function showLoadError(isRefresh: boolean, message: string): void {
+    if (!isRefresh) {
+      setState({ kind: 'error', message });
+      return;
+    }
+
+    setState((currentState) =>
+      currentState.kind === 'ready' ? failRefresh(currentState, message) : { kind: 'error', message }
+    );
   }
 
   if (state.kind === 'configuration-needed') {
@@ -115,6 +150,9 @@ export function HealthInvestigationScreen() {
       <InvestigationResult
         evidenceSources={state.evidenceSources}
         investigation={state.investigation}
+        isRefreshing={state.isRefreshing}
+        onRefresh={refreshReview}
+        refreshError={state.refreshError}
         sourceCount={state.sourceCount}
       />
     );
@@ -177,10 +215,16 @@ function ConfigurationNeeded() {
 function InvestigationResult({
   evidenceSources,
   investigation,
+  isRefreshing,
+  onRefresh,
+  refreshError,
   sourceCount
 }: {
   evidenceSources: EvidenceSource[];
   investigation: HealthInvestigationSummary | null;
+  isRefreshing: boolean;
+  onRefresh: () => Promise<void>;
+  refreshError: string | null;
   sourceCount: number;
 }) {
   const sourceStatus =
@@ -198,6 +242,7 @@ function InvestigationResult({
           <Text style={styles.cardBody}>{sourceStatus}</Text>
           <Text style={styles.cardBody}>No Health Investigation has been surfaced yet.</Text>
         </View>
+        <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
       </View>
     );
   }
@@ -210,6 +255,7 @@ function InvestigationResult({
         <Text style={styles.cardTitle}>Review status</Text>
         <Text style={styles.cardBody}>{sourceStatus}</Text>
       </View>
+      <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
       <Text style={styles.investigationTitle}>{investigation.resultType.replaceAll('-', ' ')}</Text>
       <Text style={styles.body}>{investigation.summary}</Text>
       <View style={styles.provenanceCard}>
@@ -228,6 +274,33 @@ function InvestigationResult({
       </View>
       <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
     </View>
+  );
+}
+
+function ReviewRefreshControls({
+  isRefreshing,
+  onRefresh,
+  refreshError
+}: {
+  isRefreshing: boolean;
+  onRefresh: () => Promise<void>;
+  refreshError: string | null;
+}) {
+  return (
+    <>
+      <Pressable accessibilityRole="button" disabled={isRefreshing} onPress={onRefresh} style={styles.refreshButton}>
+        {isRefreshing ? (
+          <ActivityIndicator color="#39734f" />
+        ) : (
+          <Text style={styles.refreshButtonText}>Refresh review</Text>
+        )}
+      </Pressable>
+      {refreshError ? (
+        <Text role="alert" style={styles.error}>
+          {refreshError}
+        </Text>
+      ) : null}
+    </>
   );
 }
 
@@ -251,6 +324,15 @@ const styles = StyleSheet.create({
   },
   investigationTitle: { color: '#1d1d20', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 28 },
   provenanceCard: { backgroundColor: '#f2f2ef', borderRadius: 12, marginTop: 20, padding: 18 },
+  refreshButton: {
+    alignItems: 'center',
+    borderColor: '#39734f',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 14
+  },
+  refreshButtonText: { color: '#39734f', fontSize: 16, fontWeight: '700' },
   reviewCard: { backgroundColor: '#eef5ef', borderRadius: 12, marginTop: 24, padding: 18 },
   status: { color: '#39734f', fontSize: 15, fontWeight: '600', marginTop: 28 },
   title: { color: '#1d1d20', fontSize: 30, fontWeight: '700', lineHeight: 38, marginTop: 12 }
