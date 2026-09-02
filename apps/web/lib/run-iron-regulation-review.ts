@@ -8,7 +8,8 @@ import {
 } from '@health-coach/health-core/iron-regulation-panel';
 import type { IronRegulationInvestigationInput } from '@health-coach/health-core/iron-regulation-panel';
 
-type ReviewOutcome = 'not-applicable' | 'stored';
+export type ReviewOutcome =
+  { kind: 'not-applicable' } | { investigationId: string; kind: 'stored' } | { kind: 'superseded' };
 
 type IronRegulationVariant = {
   genome_build: 'GRCh37' | 'GRCh38' | null;
@@ -32,7 +33,7 @@ type IronStudy = {
   test_name: string;
 };
 
-function inputFingerprint(variants: IronRegulationVariant[], studies: IronStudy[]): string {
+function inputFingerprint(variants: IronRegulationVariant[], studies: IronStudy[], sources: HealthSource[]): string {
   const variantInput = variants
     .map((variant) => `${variant.id}:${variant.genotype}:${variant.genome_build ?? 'unknown'}:${variant.source_id}`)
     .sort()
@@ -44,8 +45,12 @@ function inputFingerprint(variants: IronRegulationVariant[], studies: IronStudy[
     )
     .sort()
     .join('|');
+  const sourceInput = sources
+    .map((source) => `${source.id}:${source.kind}:${source.provider}:${source.verification_state}`)
+    .sort()
+    .join('|');
 
-  return createHash('sha256').update(`${variantInput}|${studyInput}`).digest('hex');
+  return createHash('sha256').update(`${variantInput}|${studyInput}|${sourceInput}`).digest('hex');
 }
 
 function isFerritinStudy(study: IronStudy): boolean {
@@ -129,13 +134,17 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-export async function runIronRegulationReview(): Promise<ReviewOutcome> {
-  const supabaseUrl = requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL');
-  const serviceRoleKey = requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY');
-  const ownerId = requiredEnvironment('HEALTH_RECORD_OWNER_ID');
-  const client = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
+async function loadReviewInput(ownerId: string): Promise<{
+  fingerprint: string;
+  isKnownDtcSource: boolean;
+  studies: IronStudy[];
+  variants: IronRegulationVariant[];
+}> {
+  const client = createClient(
+    requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL'),
+    requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY'),
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
   const { data: variants, error: variantsError } = await client
     .from('genetic_variants')
     .select('genome_build, genotype, id, source_id')
@@ -158,7 +167,8 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
     throw new Error('Unable to retrieve source metadata for the bounded iron-regulation genetic call.');
   }
 
-  const sourceById = new Map(((sources ?? []) as HealthSource[]).map((source) => [source.id, source]));
+  const eligibleSources = (sources ?? []) as HealthSource[];
+  const sourceById = new Map(eligibleSources.map((source) => [source.id, source]));
   const isKnownDtcSource = eligibleVariants.every((variant) => {
     const source = sourceById.get(variant.source_id);
 
@@ -191,10 +201,33 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
   }
 
   const eligibleStudies = [...(ferritinResult.data ?? []), ...(transferrinSaturationResult.data ?? [])] as IronStudy[];
-  const result = evaluateIronRegulationPanel({
-    geneticCall: apparentC282YCall(eligibleVariants, isKnownDtcSource),
-    ironStudyCorroboration: ironStudyCorroboration(eligibleStudies)
+
+  return {
+    fingerprint: inputFingerprint(eligibleVariants, eligibleStudies, eligibleSources),
+    isKnownDtcSource,
+    studies: eligibleStudies,
+    variants: eligibleVariants
+  };
+}
+
+export async function runIronRegulationReview(reviewOwnerId?: string): Promise<ReviewOutcome> {
+  const supabaseUrl = requiredEnvironment('NEXT_PUBLIC_SUPABASE_URL');
+  const serviceRoleKey = requiredEnvironment('SUPABASE_SERVICE_ROLE_KEY');
+  const ownerId = reviewOwnerId ?? requiredEnvironment('HEALTH_RECORD_OWNER_ID');
+  const client = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
   });
+  const reviewInput = await loadReviewInput(ownerId);
+  const result = evaluateIronRegulationPanel({
+    geneticCall: apparentC282YCall(reviewInput.variants, reviewInput.isKnownDtcSource),
+    ironStudyCorroboration: ironStudyCorroboration(reviewInput.studies)
+  });
+
+  const currentInput = await loadReviewInput(ownerId);
+
+  if (currentInput.fingerprint !== reviewInput.fingerprint) {
+    return { kind: 'superseded' };
+  }
 
   const supersededAt = new Date().toISOString();
 
@@ -210,7 +243,7 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
       throw new Error('Unable to retire an inapplicable bounded iron-regulation review.');
     }
 
-    return 'not-applicable';
+    return { kind: 'not-applicable' };
   }
 
   const { error: supersedeError } = await client
@@ -224,30 +257,34 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
     throw new Error('Unable to retire a superseded bounded iron-regulation review.');
   }
 
-  const { error: investigationError } = await client.from('health_investigations').upsert(
-    {
-      citation_references: [
-        'EASL Clinical Practice Guidelines on haemochromatosis (2022)',
-        'ClinVar VCV000000009.145',
-        'MedlinePlus Genetics: DTC testing limitations'
-      ],
-      input_fingerprint: inputFingerprint(eligibleVariants, eligibleStudies),
-      owner_id: ownerId,
-      panel_id: ironRegulationPanelId,
-      panel_version: ironRegulationPanelVersion,
-      personal_evidence_references: [
-        ...new Set([...eligibleVariants, ...eligibleStudies].map((item) => item.source_id))
-      ],
-      result_type: result.resultType,
-      summary: result.summary,
-      superseded_at: null
-    },
-    { onConflict: 'owner_id,panel_id,panel_version,input_fingerprint' }
-  );
+  const { data: investigation, error: investigationError } = await client
+    .from('health_investigations')
+    .upsert(
+      {
+        citation_references: [
+          'EASL Clinical Practice Guidelines on haemochromatosis (2022)',
+          'ClinVar VCV000000009.145',
+          'MedlinePlus Genetics: DTC testing limitations'
+        ],
+        input_fingerprint: reviewInput.fingerprint,
+        owner_id: ownerId,
+        panel_id: ironRegulationPanelId,
+        panel_version: ironRegulationPanelVersion,
+        personal_evidence_references: [
+          ...new Set([...reviewInput.variants, ...reviewInput.studies].map((item) => item.source_id))
+        ],
+        result_type: result.resultType,
+        summary: result.summary,
+        superseded_at: null
+      },
+      { onConflict: 'owner_id,panel_id,panel_version,input_fingerprint' }
+    )
+    .select('id')
+    .single();
 
-  if (investigationError) {
+  if (investigationError || !investigation) {
     throw new Error('Unable to save the bounded iron-regulation review.');
   }
 
-  return 'stored';
+  return { investigationId: investigation.id as string, kind: 'stored' };
 }

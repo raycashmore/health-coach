@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "import:ancestry:local": "tsx scripts/import-ancestry.ts --target local",
     "import:ancestry:production": "tsx scripts/import-ancestry.ts --target production",
+    "quality:health-review:local": "tsx scripts/report-health-review-quality.ts",
     "review:iron-regulation:local": "tsx scripts/run-iron-regulation-review.ts --target local",
     "supabase:migrate:local": "supabase migration up --local",
     "supabase:migration:new": "supabase migration new",

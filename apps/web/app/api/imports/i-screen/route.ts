@@ -2,7 +2,6 @@ import { parseIScreenJson } from '@health-coach/health-core/i-screen-json';
 import { NextResponse } from 'next/server';
 
 import { importIScreenReport } from '../../../../lib/import-i-screen-report';
-import { runIronRegulationReview } from '../../../../lib/run-iron-regulation-review';
 
 export const runtime = 'nodejs';
 
@@ -37,12 +36,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       const imported = parseIScreenJson(JSON.parse(sourceText));
       stage = 'saving normalized observations';
       const receipt = await importIScreenReport(imported.observations);
-
-      try {
-        await runIronRegulationReview();
-      } catch {
-        console.error('Iron-regulation Health Review trigger failed after an I-Screen import.');
-      }
 
       return NextResponse.json({ ...receipt, ignoredObservationCount: imported.ignoredObservationCount });
     } catch (error) {

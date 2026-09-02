@@ -25,9 +25,11 @@ async function main(): Promise<void> {
 
   const outcome = await runIronRegulationReview();
   console.log(
-    outcome === 'stored'
+    outcome.kind === 'stored'
       ? 'Stored the bounded iron-regulation Health Review.'
-      : 'No bounded iron-regulation Health Review is applicable.'
+      : outcome.kind === 'superseded'
+        ? 'The bounded iron-regulation Health Review was superseded by newer evidence and will be requeued.'
+        : 'No bounded iron-regulation Health Review is applicable.'
   );
 }
 

@@ -6,6 +6,7 @@ import process from 'node:process';
 
 import { createClient } from '@supabase/supabase-js';
 
+import { executeQueuedIronRegulationReview } from '../apps/web/lib/health-review-workflow-store';
 import { runIronRegulationReview } from '../apps/web/lib/run-iron-regulation-review';
 
 type Investigation = {
@@ -14,6 +15,17 @@ type Investigation = {
   personal_evidence_references: string[];
   result_type: string;
   superseded_at: string | null;
+};
+
+type ReviewRequest = {
+  id: string;
+  state: string;
+  trigger_kind: string;
+};
+
+type ReviewRun = {
+  attempt_count: number;
+  status: string;
 };
 
 function requiredEnvironment(name: string): string {
@@ -43,6 +55,37 @@ async function investigationsForOwner(
   }
 
   return (data ?? []) as Investigation[];
+}
+
+async function reviewRequestsForOwner(
+  client: ReturnType<typeof createClient>,
+  ownerId: string
+): Promise<ReviewRequest[]> {
+  const { data, error } = await client
+    .from('health_review_requests')
+    .select('id, state, trigger_kind')
+    .eq('owner_id', ownerId)
+    .order('created_at');
+
+  if (error) {
+    throw new Error(`Unable to retrieve queued Health Reviews: ${error.message}`);
+  }
+
+  return (data ?? []) as ReviewRequest[];
+}
+
+async function reviewRunsForOwner(client: ReturnType<typeof createClient>, ownerId: string): Promise<ReviewRun[]> {
+  const { data, error } = await client
+    .from('health_review_runs')
+    .select('attempt_count, status')
+    .eq('owner_id', ownerId)
+    .order('created_at');
+
+  if (error) {
+    throw new Error(`Unable to retrieve Health Review runs: ${error.message}`);
+  }
+
+  return (data ?? []) as ReviewRun[];
 }
 
 async function insertAncestrySource(
@@ -168,14 +211,19 @@ async function main(): Promise<void> {
     const firstSourceId = await insertAncestrySource(client, ownerId, `integration-source-${testRunId}-one`);
     await insertVariant(client, ownerId, firstSourceId, 'AA');
 
-    assert.equal(await runIronRegulationReview(), 'stored');
+    const queuedAfterFirstVariant = await reviewRequestsForOwner(client, ownerId);
+    assert.equal(queuedAfterFirstVariant.length, 1);
+    assert.equal(queuedAfterFirstVariant[0]?.state, 'queued');
+    assert.equal(queuedAfterFirstVariant[0]?.trigger_kind, 'data-change');
+
+    assert.equal((await runIronRegulationReview()).kind, 'stored');
     const firstStored = await investigationsForOwner(client, ownerId);
     assert.equal(firstStored.length, 1);
     assert.equal(firstStored[0]?.result_type, 'data-quality-follow-up');
     assert.equal(firstStored[0]?.superseded_at, null);
     assert.deepEqual(firstStored[0]?.personal_evidence_references, [firstSourceId]);
 
-    assert.equal(await runIronRegulationReview(), 'stored');
+    assert.equal((await runIronRegulationReview()).kind, 'stored');
     const rerun = await investigationsForOwner(client, ownerId);
     assert.equal(rerun.length, 1);
     assert.equal(rerun[0]?.id, firstStored[0]?.id);
@@ -183,13 +231,13 @@ async function main(): Promise<void> {
     assert.equal(rerun[0]?.superseded_at, null);
 
     await insertVariant(client, ownerId, firstSourceId, 'CC');
-    assert.equal(await runIronRegulationReview(), 'not-applicable');
+    assert.equal((await runIronRegulationReview()).kind, 'not-applicable');
     const inapplicable = await investigationsForOwner(client, ownerId);
     assert.equal(inapplicable.length, 1);
     assert.notEqual(inapplicable[0]?.superseded_at, null);
 
     await insertVariant(client, ownerId, firstSourceId, 'AA');
-    assert.equal(await runIronRegulationReview(), 'stored');
+    assert.equal((await runIronRegulationReview()).kind, 'stored');
     const restored = await investigationsForOwner(client, ownerId);
     assert.equal(restored.length, 1);
     assert.equal(restored[0]?.id, firstStored[0]?.id);
@@ -197,7 +245,11 @@ async function main(): Promise<void> {
 
     const conflictingSourceId = await insertAncestrySource(client, ownerId, `integration-source-${testRunId}-two`);
     await insertVariant(client, ownerId, conflictingSourceId, 'CC');
-    assert.equal(await runIronRegulationReview(), 'stored');
+    const queuedAfterSecondVariant = await reviewRequestsForOwner(client, ownerId);
+
+    assert.equal(queuedAfterSecondVariant.length, 1);
+    assert.equal(queuedAfterSecondVariant[0]?.id, queuedAfterFirstVariant[0]?.id);
+    assert.equal((await runIronRegulationReview()).kind, 'stored');
     const conflicting = await investigationsForOwner(client, ownerId);
     const activeInvestigations = conflicting.filter((investigation) => investigation.superseded_at === null);
 
@@ -226,13 +278,39 @@ async function main(): Promise<void> {
     const labSourceId = await insertLabSource(client, ownerId, `integration-laboratory-current-${testRunId}`);
     await insertFerritinResult(client, ownerId, labSourceId, '2026-01-01T00:00:00.000Z', 301);
 
-    assert.equal(await runIronRegulationReview(), 'stored');
+    assert.equal((await runIronRegulationReview()).kind, 'stored');
     const labLedReview = await investigationsForOwner(client, ownerId);
     const activeLabLedReview = labLedReview.filter((investigation) => investigation.superseded_at === null);
 
     assert.equal(activeLabLedReview.length, 1);
     assert.equal(activeLabLedReview[0]?.result_type, 'clinician-review-prompt');
     assert.deepEqual(activeLabLedReview[0]?.personal_evidence_references.sort(), [firstSourceId, labSourceId].sort());
+
+    const queuedRequest = (await reviewRequestsForOwner(client, ownerId)).find((request) => request.state === 'queued');
+    assert.ok(queuedRequest);
+    await executeQueuedIronRegulationReview(queuedRequest.id, runIronRegulationReview);
+
+    const completedRequests = await reviewRequestsForOwner(client, ownerId);
+    assert.equal(completedRequests.find((request) => request.id === queuedRequest.id)?.state, 'succeeded');
+    assert.deepEqual(await reviewRunsForOwner(client, ownerId), [{ attempt_count: 1, status: 'succeeded' }]);
+
+    const { count: traceCount, error: traceError } = await client
+      .from('operational_traces')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', ownerId);
+    const { count: snapshotCount, error: snapshotError } = await client
+      .from('private_evaluation_snapshots')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', ownerId);
+
+    if (traceError || snapshotError) {
+      throw new Error('Unable to verify private Health Review records.');
+    }
+
+    assert.equal(traceCount, 2);
+    assert.equal(snapshotCount, 1);
+    await executeQueuedIronRegulationReview(queuedRequest.id, runIronRegulationReview);
+    assert.deepEqual(await reviewRunsForOwner(client, ownerId), [{ attempt_count: 1, status: 'succeeded' }]);
   } finally {
     if (originalOwnerId) {
       process.env.HEALTH_RECORD_OWNER_ID = originalOwnerId;
