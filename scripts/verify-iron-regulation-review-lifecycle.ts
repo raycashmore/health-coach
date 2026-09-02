@@ -35,7 +35,7 @@ async function investigationsForOwner(
     .select('id, input_fingerprint, personal_evidence_references, result_type, superseded_at')
     .eq('owner_id', ownerId)
     .eq('panel_id', 'iron-regulation')
-    .eq('panel_version', '1.0')
+    .eq('panel_version', '1.1')
     .order('created_at');
 
   if (error) {
@@ -90,6 +90,52 @@ async function insertVariant(
 
   if (error) {
     throw new Error(`Unable to save test genetic variant: ${error.message}`);
+  }
+}
+
+async function insertLabSource(
+  client: ReturnType<typeof createClient>,
+  ownerId: string,
+  sourceIdentifier: string
+): Promise<string> {
+  const { data, error } = await client
+    .from('health_sources')
+    .insert({
+      owner_id: ownerId,
+      provider: 'I-Screen',
+      source_identifier: sourceIdentifier,
+      kind: 'provider-report',
+      verification_state: 'parsed'
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Unable to create test laboratory source metadata: ${error?.message ?? 'no source returned'}`);
+  }
+
+  return data.id as string;
+}
+
+async function insertFerritinResult(
+  client: ReturnType<typeof createClient>,
+  ownerId: string,
+  sourceId: string,
+  recordedAt: string,
+  value: number
+): Promise<void> {
+  const { error } = await client.from('lab_results').insert({
+    numeric_value: value,
+    owner_id: ownerId,
+    recorded_at: recordedAt,
+    reference_range: '20 - 300',
+    source_id: sourceId,
+    test_name: 'Ferritin',
+    unit: 'ug/L'
+  });
+
+  if (error) {
+    throw new Error(`Unable to save test ferritin result: ${error.message}`);
   }
 }
 
@@ -163,6 +209,30 @@ async function main(): Promise<void> {
       [firstSourceId, conflictingSourceId].sort()
     );
     assert.notEqual(conflicting.find((investigation) => investigation.id === firstStored[0]?.id)?.superseded_at, null);
+
+    const { error: removeConflictingVariantError } = await client
+      .from('genetic_variants')
+      .delete()
+      .eq('source_id', conflictingSourceId)
+      .eq('owner_id', ownerId);
+
+    if (removeConflictingVariantError) {
+      throw new Error(`Unable to remove the conflicting test variant: ${removeConflictingVariantError.message}`);
+    }
+
+    await insertVariant(client, ownerId, firstSourceId, 'AG');
+    const olderLabSourceId = await insertLabSource(client, ownerId, `integration-laboratory-old-${testRunId}`);
+    await insertFerritinResult(client, ownerId, olderLabSourceId, '2025-01-01T00:00:00.000Z', 299);
+    const labSourceId = await insertLabSource(client, ownerId, `integration-laboratory-current-${testRunId}`);
+    await insertFerritinResult(client, ownerId, labSourceId, '2026-01-01T00:00:00.000Z', 301);
+
+    assert.equal(await runIronRegulationReview(), 'stored');
+    const labLedReview = await investigationsForOwner(client, ownerId);
+    const activeLabLedReview = labLedReview.filter((investigation) => investigation.superseded_at === null);
+
+    assert.equal(activeLabLedReview.length, 1);
+    assert.equal(activeLabLedReview[0]?.result_type, 'clinician-review-prompt');
+    assert.deepEqual(activeLabLedReview[0]?.personal_evidence_references.sort(), [firstSourceId, labSourceId].sort());
   } finally {
     if (originalOwnerId) {
       process.env.HEALTH_RECORD_OWNER_ID = originalOwnerId;

@@ -119,7 +119,7 @@ pnpm supabase:owner
 pnpm import:ancestry:local
 ```
 
-After each Ancestry import, the app evaluates the single bounded iron-regulation panel. It only stores a Health Review when the imported data meets the panel's deliberately narrow eligibility criteria; missing or out-of-scope data is not treated as a negative result. To re-run the current local record without importing again:
+After each Ancestry or I-Screen import, the app evaluates the single bounded iron-regulation panel. The panel can surface a confirmation-oriented C282Y homozygous premise, or a lab-led clinician-review prompt when a source-backed ferritin result is above its laboratory reference range alongside one direct-to-consumer C282Y allele. Neither route diagnoses iron overload or recommends treatment; missing or out-of-scope data is not treated as a negative result. To re-run the current local record without importing again:
 
 ```sh
 pnpm review:iron-regulation:local
@@ -129,7 +129,7 @@ The importer saves normalized variants and source provenance only; it does not r
 
 Before either import, explicitly set `ANCESTRY_GENOME_BUILD` to `GRCh37` or `GRCh38` in that ignored environment file only after validating the export metadata. The importer refuses an unknown build rather than guessing it.
 
-An I-Screen import also starts the bounded iron-regulation Health Review. The review reads only the `rs1800562` call needed by the curated panel; a direct-to-consumer call can produce only a confirmation-oriented result, never a diagnosis or treatment advice. To rerun it after importing Ancestry data, make an authenticated `POST` request to `/api/health-reviews/iron-regulation`.
+An I-Screen import also starts the bounded iron-regulation Health Review. The review reads only the `rs1800562` call and ferritin/transferrin-saturation results needed by the curated panel; a direct-to-consumer call is contextual only and never establishes a diagnosis or treatment need. To rerun it after importing Ancestry data, make an authenticated `POST` request to `/api/health-reviews/iron-regulation`.
 
 ## Deliberate boundaries
 

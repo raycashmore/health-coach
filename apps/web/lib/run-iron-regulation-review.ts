@@ -6,6 +6,7 @@ import {
   ironRegulationPanelId,
   ironRegulationPanelVersion
 } from '@health-coach/health-core/iron-regulation-panel';
+import type { IronRegulationInvestigationInput } from '@health-coach/health-core/iron-regulation-panel';
 
 type ReviewOutcome = 'not-applicable' | 'stored';
 
@@ -23,13 +24,99 @@ type HealthSource = {
   verification_state: string;
 };
 
-function inputFingerprint(variants: IronRegulationVariant[]): string {
-  const input = variants
+type IronStudy = {
+  numeric_value: number;
+  recorded_at: string;
+  reference_range: string | null;
+  source_id: string;
+  test_name: string;
+};
+
+function inputFingerprint(variants: IronRegulationVariant[], studies: IronStudy[]): string {
+  const variantInput = variants
     .map((variant) => `${variant.id}:${variant.genotype}:${variant.genome_build ?? 'unknown'}:${variant.source_id}`)
     .sort()
     .join('|');
+  const studyInput = studies
+    .map(
+      (study) =>
+        `${study.source_id}:${study.test_name}:${study.numeric_value}:${study.reference_range ?? 'unknown'}:${study.recorded_at}`
+    )
+    .sort()
+    .join('|');
 
-  return createHash('sha256').update(input).digest('hex');
+  return createHash('sha256').update(`${variantInput}|${studyInput}`).digest('hex');
+}
+
+function isFerritinStudy(study: IronStudy): boolean {
+  return /ferritin/i.test(study.test_name);
+}
+
+function isTransferrinSaturationStudy(study: IronStudy): boolean {
+  return /(?:transferrin\s*(?:saturation|sat\.?))|\btsat\b/i.test(study.test_name);
+}
+
+function mostRecentStudy(studies: IronStudy[], matches: (study: IronStudy) => boolean): IronStudy | undefined {
+  return studies.filter(matches).sort((left, right) => right.recorded_at.localeCompare(left.recorded_at))[0];
+}
+
+function referenceRangeUpperBound(referenceRange: string | null): number | undefined {
+  if (!referenceRange) {
+    return undefined;
+  }
+
+  const rangeMatch = referenceRange.match(/(?:-|≤)\s*(\d+(?:\.\d+)?)/);
+  const parsed = rangeMatch?.[1] ? Number(rangeMatch[1]) : Number.NaN;
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isAboveReferenceRange(study: IronStudy | undefined): boolean {
+  const upperBound = study ? referenceRangeUpperBound(study.reference_range) : undefined;
+
+  return upperBound !== undefined && study !== undefined && study.numeric_value > upperBound;
+}
+
+function ironStudyCorroboration(studies: IronStudy[]): IronRegulationInvestigationInput['ironStudyCorroboration'] {
+  const ferritin = mostRecentStudy(studies, isFerritinStudy);
+  const transferrinSaturation = mostRecentStudy(studies, isTransferrinSaturationStudy);
+  const ferritinElevated = isAboveReferenceRange(ferritin);
+  const transferrinSaturationElevated = isAboveReferenceRange(transferrinSaturation);
+
+  if (ferritinElevated && transferrinSaturationElevated) {
+    return 'both-elevated';
+  }
+
+  if (ferritinElevated) {
+    return 'ferritin-elevated';
+  }
+
+  if (transferrinSaturationElevated) {
+    return 'transferrin-saturation-elevated';
+  }
+
+  if (ferritin && transferrinSaturation) {
+    return 'not-corrobating';
+  }
+
+  return 'missing';
+}
+
+function apparentC282YCall(
+  variants: IronRegulationVariant[],
+  isKnownDtcSource: boolean
+): IronRegulationInvestigationInput['geneticCall'] {
+  const genotypes = new Set(variants.map((variant) => variant.genotype));
+  const genotype = genotypes.has('AA') ? 'AA' : genotypes.has('AG') || genotypes.has('GA') ? 'AG' : undefined;
+
+  if (!genotype) {
+    return { callState: 'unavailable' };
+  }
+
+  return {
+    callState: genotypes.size === 1 && isKnownDtcSource ? 'dtc-only' : 'ambiguous',
+    genotype
+  };
 }
 
 function requiredEnvironment(name: string): string {
@@ -72,9 +159,6 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
   }
 
   const sourceById = new Map(((sources ?? []) as HealthSource[]).map((source) => [source.id, source]));
-  const hasApparentC282YHomozygosity = eligibleVariants.some((variant) => variant.genotype === 'AA');
-  const hasConflictingCall =
-    hasApparentC282YHomozygosity && eligibleVariants.some((variant) => variant.genotype !== 'AA');
   const isKnownDtcSource = eligibleVariants.every((variant) => {
     const source = sourceById.get(variant.source_id);
 
@@ -85,14 +169,31 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
       Boolean(variant.genome_build)
     );
   });
+  const [ferritinResult, transferrinSaturationResult] = await Promise.all([
+    client
+      .from('lab_results')
+      .select('numeric_value, recorded_at, reference_range, source_id, test_name')
+      .eq('owner_id', ownerId)
+      .ilike('test_name', '%ferritin%')
+      .order('recorded_at', { ascending: false })
+      .limit(1),
+    client
+      .from('lab_results')
+      .select('numeric_value, recorded_at, reference_range, source_id, test_name')
+      .eq('owner_id', ownerId)
+      .or('test_name.ilike.%transferrin saturation%,test_name.ilike.%tsat%')
+      .order('recorded_at', { ascending: false })
+      .limit(1)
+  ]);
+
+  if (ferritinResult.error || transferrinSaturationResult.error) {
+    throw new Error('Unable to retrieve bounded iron-study observations.');
+  }
+
+  const eligibleStudies = [...(ferritinResult.data ?? []), ...(transferrinSaturationResult.data ?? [])] as IronStudy[];
   const result = evaluateIronRegulationPanel({
-    geneticCall: hasApparentC282YHomozygosity
-      ? {
-          callState: hasConflictingCall || !isKnownDtcSource ? 'ambiguous' : 'dtc-only',
-          genotype: 'AA'
-        }
-      : { callState: 'unavailable' },
-    ironStudyCorroboration: 'missing'
+    geneticCall: apparentC282YCall(eligibleVariants, isKnownDtcSource),
+    ironStudyCorroboration: ironStudyCorroboration(eligibleStudies)
   });
 
   const supersededAt = new Date().toISOString();
@@ -103,7 +204,6 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
       .update({ superseded_at: supersededAt })
       .eq('owner_id', ownerId)
       .eq('panel_id', ironRegulationPanelId)
-      .eq('panel_version', ironRegulationPanelVersion)
       .is('superseded_at', null);
 
     if (supersedeError) {
@@ -118,7 +218,6 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
     .update({ superseded_at: supersededAt })
     .eq('owner_id', ownerId)
     .eq('panel_id', ironRegulationPanelId)
-    .eq('panel_version', ironRegulationPanelVersion)
     .is('superseded_at', null);
 
   if (supersedeError) {
@@ -132,11 +231,13 @@ export async function runIronRegulationReview(): Promise<ReviewOutcome> {
         'ClinVar VCV000000009.145',
         'MedlinePlus Genetics: DTC testing limitations'
       ],
-      input_fingerprint: inputFingerprint(eligibleVariants),
+      input_fingerprint: inputFingerprint(eligibleVariants, eligibleStudies),
       owner_id: ownerId,
       panel_id: ironRegulationPanelId,
       panel_version: ironRegulationPanelVersion,
-      personal_evidence_references: [...new Set(eligibleVariants.map((variant) => variant.source_id))],
+      personal_evidence_references: [
+        ...new Set([...eligibleVariants, ...eligibleStudies].map((item) => item.source_id))
+      ],
       result_type: result.resultType,
       summary: result.summary,
       superseded_at: null

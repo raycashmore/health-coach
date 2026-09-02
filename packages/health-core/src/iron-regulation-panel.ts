@@ -1,11 +1,18 @@
 import { z } from 'zod';
 
 export const ironRegulationPanelId = 'iron-regulation';
-export const ironRegulationPanelVersion = '1.0';
+export const ironRegulationPanelVersion = '1.1';
 
 export const ironRegulationCallStates = ['clinically-confirmed', 'dtc-only', 'ambiguous', 'unavailable'] as const;
 
-export const ironRegulationCorroborationStates = ['missing', 'not-corrobating', 'guideline-pattern'] as const;
+export const ironRegulationCorroborationStates = [
+  'missing',
+  'not-corrobating',
+  'ferritin-elevated',
+  'transferrin-saturation-elevated',
+  'both-elevated',
+  'guideline-pattern'
+] as const;
 
 export const ironRegulationResultTypes = [
   'no-genetic-lead',
@@ -114,9 +121,20 @@ export function evaluateIronRegulationPanel(input: IronRegulationInvestigationIn
   const geneticCall = validatedInput.geneticCall;
 
   if (!geneticCall || geneticCall.callState === 'unavailable' || geneticCall.genotype !== c282yGenotype) {
+    if (
+      geneticCall?.callState === 'dtc-only' &&
+      geneticCall.genotype === 'AG' &&
+      validatedInput.ironStudyCorroboration === 'ferritin-elevated'
+    ) {
+      return result(
+        'clinician-review-prompt',
+        'A source-backed elevated ferritin result and a single direct-to-consumer C282Y allele may be worth discussing with a clinician, including transferrin saturation and possible non-genetic explanations. Neither establishes iron overload or a diagnosis.'
+      );
+    }
+
     return result(
       'no-genetic-lead',
-      'This panel did not find an eligible genetic premise. It does not treat missing or out-of-scope data as a negative result.'
+      'This panel did not find an eligible iron-regulation premise. It does not treat missing or out-of-scope data as a negative result.'
     );
   }
 
@@ -134,10 +152,23 @@ export function evaluateIronRegulationPanel(input: IronRegulationInvestigationIn
     );
   }
 
-  if (validatedInput.ironStudyCorroboration === 'guideline-pattern') {
+  if (
+    validatedInput.ironStudyCorroboration === 'guideline-pattern' ||
+    validatedInput.ironStudyCorroboration === 'both-elevated'
+  ) {
     return result(
       'clinician-review-prompt',
       'The confirmed genetic association and available iron-study pattern merit clinical review and confirmation. This does not establish haemochromatosis or recommend treatment.'
+    );
+  }
+
+  if (
+    validatedInput.ironStudyCorroboration === 'ferritin-elevated' ||
+    validatedInput.ironStudyCorroboration === 'transferrin-saturation-elevated'
+  ) {
+    return result(
+      'clinician-review-prompt',
+      'The confirmed genetic association and an elevated source-backed iron marker merit clinical review and confirmation. This does not establish haemochromatosis, iron overload, or a treatment need.'
     );
   }
 
