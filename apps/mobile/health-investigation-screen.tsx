@@ -33,7 +33,7 @@ type EvidenceSource = {
 };
 
 export function HealthInvestigationScreen() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('owner@local.invalid');
   const [password, setPassword] = useState('');
   const [state, setState] = useState<ScreenState>(supabase ? { kind: 'signed-out' } : { kind: 'configuration-needed' });
 
