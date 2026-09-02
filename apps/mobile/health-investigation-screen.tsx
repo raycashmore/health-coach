@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { beginRefresh, failRefresh } from './health-investigation-refresh-state';
 import { HealthRecordEditor } from './health-record-editor';
+import { HealthFollowUpSection } from './health-follow-up';
 import { supabase } from './supabase-client';
 
 type ScreenState =
@@ -268,6 +269,7 @@ function InvestigationResult({
         ))}
         <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
       </View>
+      <HealthFollowUpSection key={investigation.id} investigation={investigation} ownerId={ownerId} />
       <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
     </ScrollView>
   );

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bloodPressureReadingSchema,
   geneticVariantSchema,
+  healthFollowUpSchema,
   labResultSchema,
   providerInterpretationSchema
 } from './personal-health-record.js';
@@ -88,5 +89,26 @@ describe('Personal Health Record contracts', () => {
         source: ownerEnteredSource
       }).success
     ).toBe(false);
+  });
+
+  it('requires completion evidence for a completed Health Follow-up', () => {
+    const followUp = {
+      dueEnd: '2026-10-01T00:00:00.000Z',
+      dueStart: '2026-09-01T00:00:00.000Z',
+      id: '00000000-0000-4000-8000-000000000001',
+      investigationId: '00000000-0000-4000-8000-000000000002',
+      purpose: 'Arrange the next appropriate review.',
+      rationale: 'A bounded, non-diagnostic rationale.',
+      state: 'completed' as const
+    };
+
+    expect(healthFollowUpSchema.safeParse(followUp).success).toBe(false);
+    expect(
+      healthFollowUpSchema.safeParse({
+        ...followUp,
+        completedAt: '2026-09-10T00:00:00.000Z',
+        completedSourceId: '00000000-0000-4000-8000-000000000003'
+      }).success
+    ).toBe(true);
   });
 });

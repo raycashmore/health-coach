@@ -68,6 +68,43 @@ export const supplementRegimenSchema = z.object({
   source: sourceMetadataSchema
 });
 
+export const healthFollowUpStates = ['active', 'snoozed', 'completed', 'dismissed', 'superseded'] as const;
+
+export const healthFollowUpSchema = z
+  .object({
+    completedAt: z.string().datetime().optional(),
+    completionNote: z.string().min(1).max(1000).optional(),
+    completedSourceId: z.string().uuid().optional(),
+    dueEnd: z.string().datetime(),
+    dueStart: z.string().datetime(),
+    id: z.string().uuid(),
+    investigationId: z.string().uuid(),
+    purpose: z.string().min(1).max(500),
+    rationale: z.string().min(1).max(2000),
+    state: z.enum(healthFollowUpStates),
+    supersededAt: z.string().datetime().optional()
+  })
+  .superRefine((value, context) => {
+    if (value.dueEnd < value.dueStart) {
+      context.addIssue({ code: 'custom', message: 'The due window must end on or after it begins.' });
+    }
+
+    if (value.state === 'completed' && (!value.completedAt || (!value.completionNote && !value.completedSourceId))) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'A completed Health Follow-up needs a completion time and either an owner report or source-backed result.'
+      });
+    }
+
+    if (value.state !== 'completed' && (value.completedAt || value.completionNote || value.completedSourceId)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Only a completed Health Follow-up can retain completion evidence.'
+      });
+    }
+  });
+
 export type SourceMetadata = z.infer<typeof sourceMetadataSchema>;
 export type SourceCoverage = z.infer<typeof sourceCoverageSchema>;
 export type GeneticVariant = z.infer<typeof geneticVariantSchema>;
@@ -75,3 +112,4 @@ export type BloodPressureReading = z.infer<typeof bloodPressureReadingSchema>;
 export type LabResult = z.infer<typeof labResultSchema>;
 export type ProviderInterpretation = z.infer<typeof providerInterpretationSchema>;
 export type SupplementRegimen = z.infer<typeof supplementRegimenSchema>;
+export type HealthFollowUp = z.infer<typeof healthFollowUpSchema>;
