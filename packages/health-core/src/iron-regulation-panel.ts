@@ -61,9 +61,16 @@ export type IronRegulationPanelResult = {
   summary: string;
 };
 
+const timestampSchema = z.string().datetime({ offset: true });
+
+const databaseTimestampSchema = z
+  .string()
+  .transform((value) => value.replace(/([+-]\d{2})$/, '$1:00'))
+  .pipe(timestampSchema);
+
 export const healthInvestigationSummarySchema = z.object({
   citationReferences: z.array(z.string().min(1)),
-  createdAt: z.string().datetime(),
+  createdAt: timestampSchema,
   id: z.string().uuid(),
   panelId: z.literal(ironRegulationPanelId),
   panelVersion: z.literal(ironRegulationPanelVersion),
@@ -77,7 +84,7 @@ export type HealthInvestigationSummary = z.infer<typeof healthInvestigationSumma
 
 export const healthInvestigationDatabaseRowSchema = z.object({
   citation_references: z.array(z.string().min(1)),
-  created_at: z.string().datetime(),
+  created_at: databaseTimestampSchema,
   id: z.string().uuid(),
   panel_id: z.literal(ironRegulationPanelId),
   panel_version: z.literal(ironRegulationPanelVersion),
