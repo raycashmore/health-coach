@@ -47,6 +47,8 @@ export const dispatchQueuedIronRegulationReviews = inngest.createFunction(
         }))
       );
     }
+
+    return { dispatchedRequestCount: requestIds.length };
   }
 );
 

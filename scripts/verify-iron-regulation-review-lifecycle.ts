@@ -28,6 +28,12 @@ type ReviewRun = {
   status: string;
 };
 
+type ClaimedReviewRequest = {
+  execution_token: string;
+  id: string;
+  material_change_version: number;
+};
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
 
@@ -86,6 +92,21 @@ async function reviewRunsForOwner(client: ReturnType<typeof createClient>, owner
   }
 
   return (data ?? []) as ReviewRun[];
+}
+
+async function claimReviewRequest(
+  client: ReturnType<typeof createClient>,
+  requestId: string
+): Promise<ClaimedReviewRequest> {
+  const { data, error } = await client.rpc('claim_health_review_request', { review_request_id: requestId });
+
+  if (error) {
+    throw new Error(`Unable to claim the test Health Review: ${error.message}`);
+  }
+
+  const claimed = (data ?? []) as ClaimedReviewRequest[];
+  assert.ok(claimed[0]);
+  return claimed[0];
 }
 
 async function insertAncestrySource(
@@ -288,7 +309,9 @@ async function main(): Promise<void> {
 
     const queuedRequest = (await reviewRequestsForOwner(client, ownerId)).find((request) => request.state === 'queued');
     assert.ok(queuedRequest);
-    await executeQueuedIronRegulationReview(queuedRequest.id, runIronRegulationReview);
+    assert.deepEqual(await executeQueuedIronRegulationReview(queuedRequest.id, runIronRegulationReview), {
+      status: 'succeeded'
+    });
 
     const completedRequests = await reviewRequestsForOwner(client, ownerId);
     assert.equal(completedRequests.find((request) => request.id === queuedRequest.id)?.state, 'succeeded');
@@ -309,8 +332,115 @@ async function main(): Promise<void> {
 
     assert.equal(traceCount, 2);
     assert.equal(snapshotCount, 1);
-    await executeQueuedIronRegulationReview(queuedRequest.id, runIronRegulationReview);
+    assert.deepEqual(await executeQueuedIronRegulationReview(queuedRequest.id, runIronRegulationReview), {
+      status: 'skipped'
+    });
     assert.deepEqual(await reviewRunsForOwner(client, ownerId), [{ attempt_count: 1, status: 'succeeded' }]);
+
+    await insertFerritinResult(client, ownerId, labSourceId, '2027-01-01T00:00:00.000Z', 302);
+    const requestWithNewEvidence = (await reviewRequestsForOwner(client, ownerId)).find(
+      (request) => request.state === 'queued'
+    );
+    assert.ok(requestWithNewEvidence);
+    assert.deepEqual(
+      await executeQueuedIronRegulationReview(requestWithNewEvidence.id, async (reviewOwnerId) => {
+        await insertFerritinResult(client, reviewOwnerId, labSourceId, '2027-02-01T00:00:00.000Z', 303);
+        return { kind: 'not-applicable' };
+      }),
+      { status: 'superseded' }
+    );
+    assert.equal(
+      (await reviewRequestsForOwner(client, ownerId)).find((request) => request.id === requestWithNewEvidence.id)
+        ?.state,
+      'queued'
+    );
+
+    assert.deepEqual(
+      await executeQueuedIronRegulationReview(requestWithNewEvidence.id, async (reviewOwnerId) => {
+        const { error } = await client.rpc('queue_iron_regulation_review', {
+          review_owner_id: reviewOwnerId,
+          review_trigger_kind: 'weekly'
+        });
+
+        if (error) {
+          throw new Error(`Unable to queue the test weekly Health Review: ${error.message}`);
+        }
+
+        return { kind: 'not-applicable' };
+      }),
+      { status: 'succeeded' }
+    );
+    assert.equal(
+      (await reviewRequestsForOwner(client, ownerId)).find((request) => request.id === requestWithNewEvidence.id)
+        ?.state,
+      'succeeded'
+    );
+
+    await insertFerritinResult(client, ownerId, labSourceId, '2027-03-01T00:00:00.000Z', 304);
+    const recoveryRequest = (await reviewRequestsForOwner(client, ownerId)).find(
+      (request) => request.state === 'queued'
+    );
+    assert.ok(recoveryRequest);
+
+    const expiredClaim = await claimReviewRequest(client, recoveryRequest.id);
+    const { error: expireLeaseError } = await client
+      .from('health_review_requests')
+      .update({ lease_expires_at: '2020-01-01T00:00:00.000Z' })
+      .eq('id', recoveryRequest.id)
+      .eq('execution_token', expiredClaim.execution_token);
+
+    if (expireLeaseError) {
+      throw new Error(`Unable to expire the test Health Review lease: ${expireLeaseError.message}`);
+    }
+
+    const recoveredClaim = await claimReviewRequest(client, recoveryRequest.id);
+    assert.notEqual(recoveredClaim.execution_token, expiredClaim.execution_token);
+
+    const { data: staleCompletion, error: staleCompletionError } = await client.rpc('complete_health_review_request', {
+      expected_execution_token: expiredClaim.execution_token,
+      expected_material_change_version: expiredClaim.material_change_version,
+      review_request_id: recoveryRequest.id,
+      review_state: 'succeeded'
+    });
+
+    if (staleCompletionError) {
+      throw new Error(`Unable to complete the stale test Health Review: ${staleCompletionError.message}`);
+    }
+
+    assert.equal(staleCompletion, false);
+    const { data: staleRelease, error: staleReleaseError } = await client
+      .from('health_review_requests')
+      .update({ lease_expires_at: null, state: 'queued' })
+      .eq('id', recoveryRequest.id)
+      .eq('execution_token', expiredClaim.execution_token)
+      .eq('state', 'running')
+      .select('id');
+
+    if (staleReleaseError) {
+      throw new Error(`Unable to release the stale test Health Review: ${staleReleaseError.message}`);
+    }
+
+    assert.deepEqual(staleRelease, []);
+
+    const { data: recoveredCompletion, error: recoveredCompletionError } = await client.rpc(
+      'complete_health_review_request',
+      {
+        expected_execution_token: recoveredClaim.execution_token,
+        expected_material_change_version: recoveredClaim.material_change_version,
+        review_request_id: recoveryRequest.id,
+        review_state: 'succeeded'
+      }
+    );
+
+    if (recoveredCompletionError) {
+      throw new Error(`Unable to complete the recovered test Health Review: ${recoveredCompletionError.message}`);
+    }
+
+    assert.equal(recoveredCompletion, true);
+    assert.equal(
+      (await reviewRequestsForOwner(client, ownerId)).find((request) => request.id === recoveryRequest.id)?.state,
+      'succeeded'
+    );
   } finally {
     if (originalOwnerId) {
       process.env.HEALTH_RECORD_OWNER_ID = originalOwnerId;

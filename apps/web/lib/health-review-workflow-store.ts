@@ -2,11 +2,15 @@ import { createClient } from '@supabase/supabase-js';
 import type { ReviewOutcome } from './run-iron-regulation-review';
 
 type HealthReviewRequest = {
+  execution_token: string;
   id: string;
+  material_change_version: number;
   owner_id: string;
   state: 'queued' | 'running' | 'succeeded' | 'failed' | 'superseded';
-  started_at: string | null;
-  updated_at: string;
+};
+
+type QueuedReviewExecution = {
+  status: 'skipped' | 'succeeded' | 'superseded';
 };
 
 const workflowVersion = '1';
@@ -43,51 +47,26 @@ export async function queueWeeklyIronRegulationReview(): Promise<void> {
 }
 
 export async function queuedHealthReviewRequestIds(): Promise<string[]> {
-  const { data, error } = await workflowClient()
-    .from('health_review_requests')
-    .select('id')
-    .or(`state.eq.queued,and(state.eq.running,started_at.lt.${new Date(Date.now() - 15 * 60 * 1000).toISOString()})`)
-    .order('requested_at')
-    .limit(20);
+  const { data, error } = await workflowClient().rpc('queued_health_review_request_ids');
 
   if (error) {
     throw new Error('Unable to retrieve queued Health Reviews.');
   }
 
-  return (data ?? []).map((request) => request.id as string);
+  return ((data ?? []) as { id: string }[]).map((request) => request.id);
 }
 
 async function claimReviewRequest(requestId: string): Promise<HealthReviewRequest | null> {
-  const client = workflowClient();
-  const { data: claimed, error: claimError } = await client
-    .from('health_review_requests')
-    .update({ started_at: new Date().toISOString(), state: 'running' })
-    .eq('id', requestId)
-    .eq('state', 'queued')
-    .select('id, owner_id, started_at, state, updated_at')
-    .maybeSingle();
+  const { data, error: claimError } = await workflowClient().rpc('claim_health_review_request', {
+    review_request_id: requestId
+  });
 
   if (claimError) {
     throw new Error('Unable to claim the queued Health Review.');
   }
 
-  if (claimed) {
-    return claimed as HealthReviewRequest;
-  }
-
-  const { data: running, error: runningError } = await client
-    .from('health_review_requests')
-    .update({ started_at: new Date().toISOString() })
-    .eq('id', requestId)
-    .eq('state', 'running')
-    .select('id, owner_id, started_at, state, updated_at')
-    .maybeSingle();
-
-  if (runningError) {
-    throw new Error('Unable to retrieve the running Health Review.');
-  }
-
-  return running ? (running as HealthReviewRequest) : null;
+  const claimed = (data ?? []) as HealthReviewRequest[];
+  return claimed[0] ?? null;
 }
 
 async function startRun(request: HealthReviewRequest): Promise<string> {
@@ -168,11 +147,11 @@ async function captureEvaluationSnapshot(reviewRunId: string, ownerId: string, i
 export async function executeQueuedIronRegulationReview(
   requestId: string,
   runReview: (ownerId: string) => Promise<ReviewOutcome>
-): Promise<void> {
+): Promise<QueuedReviewExecution> {
   const request = await claimReviewRequest(requestId);
 
-  if (!request || !request.started_at) {
-    return;
+  if (!request) {
+    return { status: 'skipped' };
   }
 
   let reviewRunId: string | null = null;
@@ -183,7 +162,7 @@ export async function executeQueuedIronRegulationReview(
     const outcome = await runReview(request.owner_id);
     const { data: currentRequest, error: requestError } = await workflowClient()
       .from('health_review_requests')
-      .select('updated_at')
+      .select('material_change_version')
       .eq('id', request.id)
       .single();
 
@@ -191,10 +170,12 @@ export async function executeQueuedIronRegulationReview(
       throw new Error('Unable to check Health Review freshness.');
     }
 
-    const superseded = outcome.kind === 'superseded' || currentRequest.updated_at > request.started_at;
+    const superseded =
+      outcome.kind === 'superseded' || currentRequest.material_change_version !== request.material_change_version;
     const client = workflowClient();
     const { data: completed, error: completionError } = await client.rpc('complete_health_review_request', {
-      expected_updated_at: currentRequest.updated_at,
+      expected_execution_token: request.execution_token,
+      expected_material_change_version: currentRequest.material_change_version,
       review_request_id: request.id,
       review_state: superseded ? 'queued' : 'succeeded'
     });
@@ -222,12 +203,41 @@ export async function executeQueuedIronRegulationReview(
     }
 
     await writeTrace(reviewRunId, request.owner_id, finalStatus);
+    return { status: finalStatus };
   } catch (error) {
-    await workflowClient().from('health_review_requests').update({ state: 'queued' }).eq('id', request.id);
-    if (reviewRunId) {
-      await workflowClient().from('health_review_runs').update({ status: 'failed' }).eq('id', reviewRunId);
+    const client = workflowClient();
+    const { data: released, error: releaseError } = await client
+      .from('health_review_requests')
+      .update({ lease_expires_at: null, state: 'queued' })
+      .eq('id', request.id)
+      .eq('execution_token', request.execution_token)
+      .eq('state', 'running')
+      .select('id')
+      .maybeSingle();
+
+    if (releaseError) {
+      throw new Error('Unable to release the failed Health Review request.');
+    }
+
+    if (released && reviewRunId) {
+      await client.from('health_review_runs').update({ status: 'failed' }).eq('id', reviewRunId);
       await writeTrace(reviewRunId, request.owner_id, 'failed', 'retryable').catch(() => undefined);
     }
+
+    if (!released) {
+      const { data: currentRequest, error: currentRequestError } = await client
+        .from('health_review_requests')
+        .select('state')
+        .eq('id', request.id)
+        .maybeSingle();
+
+      if (currentRequestError) {
+        throw new Error('Unable to check the terminal Health Review state.');
+      }
+
+      return { status: currentRequest?.state === 'succeeded' ? 'succeeded' : 'superseded' };
+    }
+
     throw error;
   }
 }
