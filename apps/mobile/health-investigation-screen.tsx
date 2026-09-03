@@ -313,9 +313,9 @@ function InvestigationResult({
         ))}
         <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
       </View>
-      <HealthFollowUpSection key={investigation.id} investigation={investigation} ownerId={ownerId} />
+      <HealthFollowUpSection key={`follow-ups-${investigation.id}`} investigation={investigation} ownerId={ownerId} />
       <HealthInvestigationFeedback
-        key={investigation.id}
+        key={`feedback-${investigation.id}`}
         initialJudgement={feedbackJudgement}
         investigationId={investigation.id}
         ownerId={ownerId}
