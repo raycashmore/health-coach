@@ -54,12 +54,14 @@ pnpm supabase:stop
 
 Relevant genetic, laboratory, and source-quality changes write a single coalesced Health Review request to Supabase. An Inngest dispatcher sends only the request UUID to the worker; the worker fetches the bounded evidence server-side, retries failures, and checks freshness before publishing. A changed request is requeued rather than allowed to publish a stale conclusion. The weekly review runs Monday at 9:00am Australia/Sydney.
 
-For local durable-workflow development, add test Inngest credentials and `INNGEST_DEV=1` to the ignored `apps/web/.env.local`, then start the web server and Inngest Dev Server in another terminal:
+For local durable-workflow development, start Supabase once, then `pnpm dev`. It starts the web and Android development processes plus the local Inngest Dev Server. The web process sets `INNGEST_DEV=1` automatically; dummy local event credentials are sufficient if the Inngest SDK asks for them.
 
 ```sh
-pnpm --filter @health-coach/web dev
-npx inngest-cli@latest dev
+pnpm supabase:start
+pnpm dev
 ```
+
+The Inngest Dev Server UI is available at `http://localhost:8288`. Use `pnpm dev:apps` when you only want the web and Android app processes.
 
 Operational Traces contain only lifecycle metadata (run ID, status, version, and a bounded error category), never medical content. Richer evaluation snapshots are held in the access-controlled database, never in this repository or workflow event payloads. In the Android app, the owner can privately rate a surfaced investigation **Useful**, **Not useful**, or **Concerning**. Generate a local aggregate quality report—counts only, no health content—with:
 

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "INNGEST_DEV=1 next dev",
+    "inngest:dev": "inngest dev --no-discovery -u http://localhost:3000/api/inngest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

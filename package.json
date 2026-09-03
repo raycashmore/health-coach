@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "dev": "turbo run dev inngest:dev",
+    "dev:apps": "turbo run dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "import:ancestry:local": "tsx scripts/import-ancestry.ts --target local",
@@ -23,12 +24,14 @@
     "supabase:env": "supabase status -o json | node scripts/write-local-supabase-env.mjs",
     "supabase:stop": "supabase stop",
     "supabase:verify": "pnpm supabase:start && pnpm supabase:reset && tsx scripts/verify-iron-regulation-review-lifecycle.ts",
-    "test": "turbo run test",
+    "test": "pnpm verify:local-dev && turbo run test",
     "typecheck": "turbo run typecheck",
+    "verify:local-dev": "node scripts/verify-local-dev-orchestration.mjs",
     "verify": "pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.112.3",
+    "inngest-cli": "^1.44.0",
     "prettier": "^3.9.6",
     "supabase": "^2.115.0",
     "tsx": "^4.23.12",
