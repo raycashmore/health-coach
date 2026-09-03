@@ -4,16 +4,19 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "INNGEST_DEV=1 next dev",
+    "inngest:dev": "inngest dev --no-discovery -u http://localhost:3000/api/inngest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@health-coach/health-core": "workspace:*",
     "@supabase/supabase-js": "^2.112.3",
+    "inngest": "^4.18.1",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

@@ -1,17 +1,18 @@
 # Iron-regulation Genetic Topic Panel — evidence and safety note
 
-**Panel version:** 1.0  
+**Panel version:** 1.1
 **Status:** initial curated association; suitable only for a bounded Health
 Investigation  
 **Evidence reviewed:** 31 August 2026
 
 ## Purpose and non-diagnostic boundary
 
-This panel may identify one narrowly defined _HFE_ genotype as a reason to
-consider whether existing iron studies provide useful corroboration. It does
-not screen the genome, diagnose haemochromatosis or iron overload, estimate an
-individual's probability of disease, recommend treatment, or advise changes to
-iron, vitamin C, alcohol, diet, blood donation, or phlebotomy.
+This panel may identify a source-backed iron-study pattern as a reason to
+consider a bounded clinical discussion, with a narrowly defined _HFE_ genotype
+as supporting context where available. It does not screen the genome, diagnose
+haemochromatosis or iron overload, estimate an individual's probability of
+disease, recommend treatment, or advise changes to iron, vitamin C, alcohol,
+diet, blood donation, or phlebotomy.
 
 The result must be phrased as a genetic association that may be worth checking
 with a clinician, not as a condition, a finding of iron overload, or a
@@ -25,7 +26,7 @@ symptoms or complications.
 
 ## Curated genetic premise
 
-The sole eligible association in version 1.0 is **homozygosity for the
+The primary genetic association in version 1.1 is **homozygosity for the
 alternate allele** at _HFE_ **NM_000410.4:c.845G>A (p.Cys282Tyr; C282Y;
 rs1800562)**. The recorded genomic coordinates are GRCh38 chr6:26092913 and
 GRCh37 chr6:26093141. ClinVar identifies this as Variation ID 9 and reports a
@@ -33,14 +34,18 @@ germline classification of pathogenic/pathogenic, low penetrance; risk factor,
 with multiple submitters and no conflicts. [ClinVar
 VCV000000009.145](https://www.ncbi.nlm.nih.gov/clinvar/variation/9/)
 
-This selection is deliberately narrower than a general _HFE_ panel. EASL
+This selection remains deliberately narrower than a general _HFE_ panel. EASL
 states that p.Cys282Tyr homozygosity is the principal genotype in
 HFE-haemochromatosis. It describes p.His63Asp (H63D) testing as a special-case,
 controversial assessment that is not generally suggested to guide treatment.
-Accordingly, version 1.0 must not create a lead for C282Y heterozygosity,
-H63D heterozygosity or homozygosity, C282Y/H63D compound heterozygosity,
-S65C, unphased calls, or any other _HFE_ or iron-related gene. Those are out
-of scope rather than negative or reassuring results. [EASL (2022)](https://easl.eu/wp-content/uploads/2022/06/PIIS01688278220021121.pdf)
+Accordingly, this panel must not create a genetic lead from C282Y
+heterozygosity, H63D heterozygosity or homozygosity, C282Y/H63D compound
+heterozygosity, S65C, unphased calls, or any other _HFE_ or iron-related gene.
+A source-backed ferritin result above its laboratory reference range plus a
+single C282Y DTC allele may instead create a **lab-led clinician-review
+prompt**: the allele is contextual, not an explanation or a diagnosis. Those
+genetic calls otherwise remain out of scope rather than negative or reassuring
+results. [EASL (2022)](https://easl.eu/wp-content/uploads/2022/06/PIIS01688278220021121.pdf)
 
 The panel must require a source-backed, unambiguous biallelic C282Y call whose
 reference assembly and quality status are known. It must not infer the
@@ -53,15 +58,16 @@ medical decisions. [MedlinePlus Genetics: DTC testing limitations](https://medli
 
 ## Required personal context
 
-The investigation retrieves only:
+The version 1.1 implementation retrieves only:
 
 - the eligible genetic call and its source/quality metadata;
 - the most recent source-backed transferrin saturation (TSAT) and serum
-  ferritin, including their dates and laboratory reference ranges;
-- a known first-degree family history of clinically confirmed
-  haemochromatosis, if the owner has voluntarily recorded it; and
-- applicable counter-signals or alternative explanations already supported by
-  the record, without trying to establish any of them.
+  ferritin, including their dates and laboratory reference ranges.
+
+Known first-degree family history and source-backed counter-signals may add
+context in a later panel revision once the Personal Health Record can retain
+them. They do not alter a version 1.1 result route. The panel never chooses an
+alternative explanation for a raised result.
 
 The most useful missing corroboration is a clinician-directed iron study that
 includes TSAT and ferritin. EASL uses both measures as the first diagnostic
@@ -88,13 +94,13 @@ for genotype or use a fixed penetrance percentage in owner-facing text.
 
 ## The only allowable panel result routes
 
-| Route                           | Entry condition                                                                                                                                | Permitted outcome                                                                                                                                                                                                            |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **No genetic lead**             | A validated call is not C282Y homozygous, or no eligible call is available.                                                                    | Record no panel-generated result. Do not label the owner negative, low risk, or cleared.                                                                                                                                     |
-| **Data-quality follow-up**      | The apparent call is DTC-only, unphased/ambiguous, lacks assembly or quality metadata, or otherwise cannot meet the curated premise.           | Explain that it cannot be used for a medical conclusion and suggest discussing clinically validated confirmation with a healthcare professional if the owner wants it assessed. No risk statement or treatment advice.       |
-| **Worth-checking Genetic Lead** | The curated premise is met, but TSAT and ferritin are unavailable or do not both provide the context needed for interpretation.                | Explain the association and uncertainty; identify TSAT and ferritin as the useful missing corroboration; suggest a clinician discussion. This is the sole route that may use the visible term _Worth-checking Genetic Lead_. |
-| **Clinician-review prompt**     | The curated premise is met and available data show the EASL biochemical pattern above, or persistently elevated TSAT is already source-backed. | State that the combination merits clinical review and confirmation; do not call it haemochromatosis, iron overload, or a diagnosis, and do not recommend a treatment.                                                        |
-| **No current panel escalation** | The curated premise is met and recent TSAT and ferritin do not show the guideline biochemical pattern.                                         | State that the available iron markers do not currently corroborate this limited genetic lead. Do not schedule repeat testing, claim absence of disease, or generate lifestyle/treatment advice.                              |
+| Route                           | Entry condition                                                                                                                                                                                       | Permitted outcome                                                                                                                                                                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No genetic lead**             | No C282Y homozygous premise is available, or only a single C282Y allele is available without a source-backed ferritin elevation.                                                                      | Record no panel-generated result. Do not label the owner negative, low risk, or cleared.                                                                                                                                               |
+| **Data-quality follow-up**      | The apparent call is DTC-only, unphased/ambiguous, lacks assembly or quality metadata, or otherwise cannot meet the curated premise.                                                                  | Explain that it cannot be used for a medical conclusion and suggest discussing clinically validated confirmation with a healthcare professional if the owner wants it assessed. No risk statement or treatment advice.                 |
+| **Worth-checking Genetic Lead** | The curated premise is met, but TSAT and ferritin are unavailable or do not both provide the context needed for interpretation.                                                                       | Explain the association and uncertainty; identify TSAT and ferritin as the useful missing corroboration; suggest a clinician discussion. This is the sole route that may use the visible term _Worth-checking Genetic Lead_.           |
+| **Clinician-review prompt**     | The curated premise is met and available data show the EASL biochemical pattern above, or a source-backed ferritin result is above its reported laboratory range alongside a single C282Y DTC allele. | State that the combination merits clinical review and confirmation; ask for TSAT and possible non-genetic explanations where needed; do not call it haemochromatosis, iron overload, or a diagnosis, and do not recommend a treatment. |
+| **No current panel escalation** | The curated premise is met and recent TSAT and ferritin do not show the guideline biochemical pattern.                                                                                                | State that the available iron markers do not currently corroborate this limited genetic lead. Do not schedule repeat testing, claim absence of disease, or generate lifestyle/treatment advice.                                        |
 
 Any symptoms, markedly abnormal laboratory result, or concern outside these
 routes belongs to the ordinary clinical/laboratory safety workflow, not this

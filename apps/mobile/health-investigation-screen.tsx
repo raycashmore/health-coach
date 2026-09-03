@@ -17,9 +17,11 @@ type ScreenState =
   | {
       kind: 'ready';
       evidenceSources: EvidenceSource[];
+      feedbackJudgement: FeedbackJudgement | null;
       investigation: HealthInvestigationSummary | null;
       isRefreshing: boolean;
       ownerId: string;
+      reviewWorkState: 'queued' | 'running' | null;
       refreshError: string | null;
       sourceCount: number;
     }
@@ -31,6 +33,8 @@ type EvidenceSource = {
   provider: string;
   verificationState: string;
 };
+
+type FeedbackJudgement = 'useful' | 'not-useful' | 'concerning';
 
 export function HealthInvestigationScreen() {
   const [email, setEmail] = useState('owner@local.invalid');
@@ -69,36 +73,58 @@ export function HealthInvestigationScreen() {
     }
 
     try {
-      const [{ data: investigation, error: investigationError }, { count: sourceCount, error: sourcesError }] =
-        await Promise.all([
-          supabase
-            .from('health_investigations')
-            .select(
-              'citation_references, created_at, id, panel_id, panel_version, personal_evidence_references, result_type, summary'
-            )
-            .eq('owner_id', ownerId)
-            .is('superseded_at', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from('health_sources').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId)
-        ]);
+      const [
+        { data: investigation, error: investigationError },
+        { count: sourceCount, error: sourcesError },
+        { data: reviewWork, error: reviewWorkError }
+      ] = await Promise.all([
+        supabase
+          .from('health_investigations')
+          .select(
+            'citation_references, created_at, id, panel_id, panel_version, personal_evidence_references, result_type, summary'
+          )
+          .eq('owner_id', ownerId)
+          .is('superseded_at', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from('health_sources').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId),
+        supabase
+          .from('health_review_requests')
+          .select('state')
+          .eq('owner_id', ownerId)
+          .in('state', ['queued', 'running'])
+          .order('requested_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      ]);
 
-      if (investigationError || sourcesError) {
+      if (investigationError || sourcesError || reviewWorkError) {
         showLoadError(isRefresh, 'Your Health Investigation could not be loaded.');
         return;
       }
 
       const review = investigation ? toHealthInvestigationSummary(investigation) : null;
-      const { data: evidenceSources, error: evidenceSourcesError } = review
-        ? await supabase
-            .from('health_sources')
-            .select('id, imported_at, provider, verification_state')
-            .eq('owner_id', ownerId)
-            .in('id', review.personalEvidenceReferenceIds)
-        : { data: [], error: null };
+      const [{ data: evidenceSources, error: evidenceSourcesError }, { data: feedback, error: feedbackError }] = review
+        ? await Promise.all([
+            supabase
+              .from('health_sources')
+              .select('id, imported_at, provider, verification_state')
+              .eq('owner_id', ownerId)
+              .in('id', review.personalEvidenceReferenceIds),
+            supabase
+              .from('health_investigation_feedback')
+              .select('judgement')
+              .eq('investigation_id', review.id)
+              .eq('owner_id', ownerId)
+              .maybeSingle()
+          ])
+        : [
+            { data: [], error: null },
+            { data: null, error: null }
+          ];
 
-      if (evidenceSourcesError) {
+      if (evidenceSourcesError || feedbackError) {
         showLoadError(isRefresh, 'Your Health Investigation evidence could not be loaded.');
         return;
       }
@@ -111,9 +137,16 @@ export function HealthInvestigationScreen() {
           provider: source.provider,
           verificationState: source.verification_state
         })),
+        feedbackJudgement:
+          feedback?.judgement === 'useful' ||
+          feedback?.judgement === 'not-useful' ||
+          feedback?.judgement === 'concerning'
+            ? feedback.judgement
+            : null,
         investigation: review,
         isRefreshing: false,
         ownerId,
+        reviewWorkState: reviewWork?.state === 'queued' || reviewWork?.state === 'running' ? reviewWork.state : null,
         refreshError: null,
         sourceCount: sourceCount ?? 0
       });
@@ -141,10 +174,12 @@ export function HealthInvestigationScreen() {
     return (
       <InvestigationResult
         evidenceSources={state.evidenceSources}
+        feedbackJudgement={state.feedbackJudgement}
         investigation={state.investigation}
         isRefreshing={state.isRefreshing}
         onRefresh={refreshReview}
         ownerId={state.ownerId}
+        reviewWorkState={state.reviewWorkState}
         refreshError={state.refreshError}
         sourceCount={state.sourceCount}
       />
@@ -207,18 +242,22 @@ function ConfigurationNeeded() {
 
 function InvestigationResult({
   evidenceSources,
+  feedbackJudgement,
   investigation,
   isRefreshing,
   onRefresh,
   ownerId,
+  reviewWorkState,
   refreshError,
   sourceCount
 }: {
   evidenceSources: EvidenceSource[];
+  feedbackJudgement: FeedbackJudgement | null;
   investigation: HealthInvestigationSummary | null;
   isRefreshing: boolean;
   onRefresh: () => Promise<void>;
   ownerId: string;
+  reviewWorkState: 'queued' | 'running' | null;
   refreshError: string | null;
   sourceCount: number;
 }) {
@@ -226,6 +265,9 @@ function InvestigationResult({
     sourceCount === 0
       ? 'No sources are connected yet. Import data privately on the web to begin a Health Review.'
       : `${sourceCount} private ${sourceCount === 1 ? 'source is' : 'sources are'} connected and available for a bounded Health Review.`;
+  const workStatus = reviewWorkState
+    ? `A background Health Review is ${reviewWorkState === 'queued' ? 'queued' : 'running'}.`
+    : null;
 
   if (!investigation) {
     return (
@@ -235,6 +277,7 @@ function InvestigationResult({
         <View style={styles.reviewCard}>
           <Text style={styles.cardTitle}>Review status</Text>
           <Text style={styles.cardBody}>{sourceStatus}</Text>
+          {workStatus ? <Text style={styles.cardBody}>{workStatus}</Text> : null}
           <Text style={styles.cardBody}>No Health Investigation has been surfaced yet.</Text>
         </View>
         <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
@@ -250,6 +293,7 @@ function InvestigationResult({
       <View style={styles.reviewCard}>
         <Text style={styles.cardTitle}>Review status</Text>
         <Text style={styles.cardBody}>{sourceStatus}</Text>
+        {workStatus ? <Text style={styles.cardBody}>{workStatus}</Text> : null}
       </View>
       <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
       <HealthRecordEditor key={ownerId} ownerId={ownerId} />
@@ -269,9 +313,79 @@ function InvestigationResult({
         ))}
         <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
       </View>
-      <HealthFollowUpSection key={investigation.id} investigation={investigation} ownerId={ownerId} />
+      <HealthFollowUpSection key={`follow-ups-${investigation.id}`} investigation={investigation} ownerId={ownerId} />
+      <HealthInvestigationFeedback
+        key={`feedback-${investigation.id}`}
+        initialJudgement={feedbackJudgement}
+        investigationId={investigation.id}
+        ownerId={ownerId}
+      />
       <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
     </ScrollView>
+  );
+}
+
+function HealthInvestigationFeedback({
+  initialJudgement,
+  investigationId,
+  ownerId
+}: {
+  initialJudgement: FeedbackJudgement | null;
+  investigationId: string;
+  ownerId: string;
+}) {
+  const [judgement, setJudgement] = useState<FeedbackJudgement | null>(initialJudgement);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function saveJudgement(nextJudgement: FeedbackJudgement): Promise<void> {
+    if (!supabase || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    const { error } = await supabase
+      .from('health_investigation_feedback')
+      .upsert(
+        { investigation_id: investigationId, judgement: nextJudgement, owner_id: ownerId },
+        { onConflict: 'owner_id,investigation_id' }
+      );
+    setIsSaving(false);
+
+    if (error) {
+      setSaveError('Your feedback could not be saved.');
+      return;
+    }
+
+    setJudgement(nextJudgement);
+  }
+
+  return (
+    <View style={styles.feedbackCard}>
+      <Text style={styles.cardTitle}>Was this review useful?</Text>
+      <Text style={styles.cardBody}>
+        Your private rating helps assess the Health Review. It does not change care advice.
+      </Text>
+      <View style={styles.feedbackButtons}>
+        {(['useful', 'not-useful', 'concerning'] as const).map((option) => (
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSaving}
+            key={option}
+            onPress={() => saveJudgement(option)}
+            style={[styles.feedbackButton, judgement === option ? styles.feedbackButtonSelected : null]}
+          >
+            <Text style={styles.feedbackButtonText}>{option.replace('-', ' ')}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {saveError ? (
+        <Text role="alert" style={styles.error}>
+          {saveError}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -311,6 +425,11 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, justifyContent: 'center', padding: 28 },
   eyebrow: { color: '#39734f', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
   error: { color: '#9d1c1c', fontSize: 15, marginTop: 12 },
+  feedbackButton: { borderColor: '#39734f', borderRadius: 8, borderWidth: 1, padding: 10 },
+  feedbackButtonSelected: { backgroundColor: '#dcebdd' },
+  feedbackButtonText: { color: '#39734f', fontSize: 14, fontWeight: '700', textTransform: 'capitalize' },
+  feedbackButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  feedbackCard: { backgroundColor: '#f2f2ef', borderRadius: 12, marginTop: 20, padding: 18 },
   input: {
     backgroundColor: '#ffffff',
     borderColor: '#b4b4b4',

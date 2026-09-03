@@ -17,7 +17,7 @@ This project explores the product and engineering challenges of building useful 
 - **Privacy by design:** raw imports are transient; the product retains normalised records and source metadata. The model receives narrow, relevant tool results by default.
 - **Shared domain language:** a typed, Zod-validated Personal Health Record lives in a shared package, keeping web and mobile clients aligned.
 - **Focused surfaces:** Next.js handles private file intake and server-side boundaries; Expo/React Native provides the Android product experience.
-- **Production path:** Supabase will become the canonical record, Vercel AI SDK will power bounded model tools, and Inngest will run durable Health Review and Investigation workflows.
+- **Durable review loop:** Supabase is the canonical record, Vercel AI SDK is reserved for bounded model tools, and Inngest runs retried, coalesced Health Review work. The first review is deterministic and does not invoke a model.
 
 ## Architecture
 
@@ -27,7 +27,7 @@ apps/mobile          Expo Android experience
 packages/health-core shared Personal Health Record contracts
 ```
 
-More detail is in [docs/architecture.md](docs/architecture.md). The monorepo decision is recorded in [ADR 0001](docs/adr/0001-small-monorepo.md). Supabase, Vercel AI SDK, and Inngest are the planned production integrations; they are intentionally not connected in this foundation commit.
+More detail is in [docs/architecture.md](docs/architecture.md). The monorepo decision is recorded in [ADR 0001](docs/adr/0001-small-monorepo.md).
 
 ## Local development
 
@@ -49,6 +49,25 @@ pnpm supabase:stop
 ```
 
 `pnpm supabase:start` starts the local Docker services and writes their credentials to the ignored `apps/web/.env.local`. Vercel CLI may maintain hosted deployment credentials in the ignored root `.env.local`; do not copy either file into version control.
+
+### Durable Health Reviews
+
+Relevant genetic, laboratory, and source-quality changes write a single coalesced Health Review request to Supabase. An Inngest dispatcher sends only the request UUID to the worker; the worker fetches the bounded evidence server-side, retries failures, and checks freshness before publishing. A changed request is requeued rather than allowed to publish a stale conclusion. The weekly review runs Monday at 9:00am Australia/Sydney.
+
+For local durable-workflow development, start Supabase once, then `pnpm dev`. It starts the web and Android development processes plus the local Inngest Dev Server. The web process sets `INNGEST_DEV=1` automatically; dummy local event credentials are sufficient if the Inngest SDK asks for them.
+
+```sh
+pnpm supabase:start
+pnpm dev
+```
+
+The Inngest Dev Server UI is available at `http://localhost:8288`. Use `pnpm dev:apps` when you only want the web and Android app processes.
+
+Operational Traces contain only lifecycle metadata (run ID, status, version, and a bounded error category), never medical content. Richer evaluation snapshots are held in the access-controlled database, never in this repository or workflow event payloads. In the Android app, the owner can privately rate a surfaced investigation **Useful**, **Not useful**, or **Concerning**. Generate a local aggregate quality report—counts only, no health content—with:
+
+```sh
+pnpm quality:health-review:local
+```
 
 For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `apps/mobile/.env.local` file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
 
@@ -119,7 +138,7 @@ pnpm supabase:owner
 pnpm import:ancestry:local
 ```
 
-After each Ancestry import, the app evaluates the single bounded iron-regulation panel. It only stores a Health Review when the imported data meets the panel's deliberately narrow eligibility criteria; missing or out-of-scope data is not treated as a negative result. To re-run the current local record without importing again:
+After each Ancestry or I-Screen import, the app queues the single bounded iron-regulation panel. The panel can surface a confirmation-oriented C282Y homozygous premise, or a lab-led clinician-review prompt when a source-backed ferritin result is above its laboratory reference range alongside one direct-to-consumer C282Y allele. Neither route diagnoses iron overload or recommends treatment; missing or out-of-scope data is not treated as a negative result. To re-run the current local record without importing again:
 
 ```sh
 pnpm review:iron-regulation:local
@@ -129,7 +148,7 @@ The importer saves normalized variants and source provenance only; it does not r
 
 Before either import, explicitly set `ANCESTRY_GENOME_BUILD` to `GRCh37` or `GRCh38` in that ignored environment file only after validating the export metadata. The importer refuses an unknown build rather than guessing it.
 
-An I-Screen import also starts the bounded iron-regulation Health Review. The review reads only the `rs1800562` call needed by the curated panel; a direct-to-consumer call can produce only a confirmation-oriented result, never a diagnosis or treatment advice. To rerun it after importing Ancestry data, make an authenticated `POST` request to `/api/health-reviews/iron-regulation`.
+An I-Screen import also queues the bounded iron-regulation Health Review. The review reads only the `rs1800562` call and ferritin/transferrin-saturation results needed by the curated panel; a direct-to-consumer call is contextual only and never establishes a diagnosis or treatment need.
 
 ## Deliberate boundaries
 

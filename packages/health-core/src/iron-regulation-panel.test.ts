@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { evaluateIronRegulationPanel, toHealthInvestigationSummary } from './iron-regulation-panel.js';
+import {
+  evaluateIronRegulationPanel,
+  healthInvestigationSummarySchema,
+  toHealthInvestigationSummary
+} from './iron-regulation-panel.js';
 
 describe('evaluateIronRegulationPanel', () => {
   it('fails closed when the apparent C282Y call is direct-to-consumer only', () => {
@@ -35,6 +39,33 @@ describe('evaluateIronRegulationPanel', () => {
     ).toMatchObject({ resultType: 'no-genetic-lead' });
   });
 
+  it('routes an elevated ferritin result with a single direct-to-consumer C282Y allele to clinical review', () => {
+    expect(
+      evaluateIronRegulationPanel({
+        geneticCall: { callState: 'dtc-only', genotype: 'AG' },
+        ironStudyCorroboration: 'ferritin-elevated'
+      })
+    ).toMatchObject({ resultType: 'clinician-review-prompt' });
+  });
+
+  it('does not use a single direct-to-consumer C282Y allele alone as a genetic lead', () => {
+    expect(
+      evaluateIronRegulationPanel({
+        geneticCall: { callState: 'dtc-only', genotype: 'AG' },
+        ironStudyCorroboration: 'missing'
+      })
+    ).toMatchObject({ resultType: 'no-genetic-lead' });
+  });
+
+  it('does not surface a lab-led prompt from an ambiguous C282Y call', () => {
+    expect(
+      evaluateIronRegulationPanel({
+        geneticCall: { callState: 'ambiguous', genotype: 'AG' },
+        ironStudyCorroboration: 'ferritin-elevated'
+      })
+    ).toMatchObject({ resultType: 'no-genetic-lead' });
+  });
+
   it('requires a source-backed known build for a clinically confirmed call', () => {
     expect(() =>
       evaluateIronRegulationPanel({
@@ -51,7 +82,7 @@ describe('evaluateIronRegulationPanel', () => {
         created_at: '2026-08-31T10:00:00.000Z',
         id: '00000000-0000-4000-8000-000000000002',
         panel_id: 'iron-regulation',
-        panel_version: '1.0',
+        panel_version: '1.1',
         personal_evidence_references: ['00000000-0000-4000-8000-000000000001'],
         result_type: 'data-quality-follow-up',
         summary: 'A carefully bounded, non-diagnostic summary.'
@@ -61,11 +92,28 @@ describe('evaluateIronRegulationPanel', () => {
       createdAt: '2026-08-31T10:00:00.000Z',
       id: '00000000-0000-4000-8000-000000000002',
       panelId: 'iron-regulation',
-      panelVersion: '1.0',
+      panelVersion: '1.1',
       personalEvidenceCount: 1,
       personalEvidenceReferenceIds: ['00000000-0000-4000-8000-000000000001'],
       resultType: 'data-quality-follow-up',
       summary: 'A carefully bounded, non-diagnostic summary.'
+    });
+  });
+
+  it('accepts the UTC offset format returned by PostgREST', () => {
+    const summary = toHealthInvestigationSummary({
+      citation_references: ['Example guideline'],
+      created_at: '2026-08-31T10:00:00.000+00',
+      id: '00000000-0000-4000-8000-000000000002',
+      panel_id: 'iron-regulation',
+      panel_version: '1.1',
+      personal_evidence_references: ['00000000-0000-4000-8000-000000000001'],
+      result_type: 'clinician-review-prompt',
+      summary: 'Example review summary.'
+    });
+
+    expect(healthInvestigationSummarySchema.parse(summary)).toMatchObject({
+      createdAt: '2026-08-31T10:00:00.000+00:00'
     });
   });
 });
