@@ -6,11 +6,13 @@
     "build": "next build",
     "dev": "INNGEST_DEV=1 next dev",
     "inngest:dev": "inngest dev --no-discovery -u http://localhost:3000/api/inngest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@health-coach/health-core": "workspace:*",
     "@supabase/supabase-js": "^2.112.3",
+    "ai": "^7.0.155",
     "inngest": "^4.18.1",
     "next": "^16.0.0",
     "react": "^19.0.0",
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4"
+    "@types/react-dom": "^19.2.4",
+    "vitest": "^4.1.11"
   }
 }

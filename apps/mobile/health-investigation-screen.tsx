@@ -2,17 +2,14 @@ import {
   toHealthInvestigationSummary,
   type HealthInvestigationSummary
 } from '@health-coach/health-core/iron-regulation-panel';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Button, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { beginRefresh, failRefresh } from './health-investigation-refresh-state';
 import { HealthRecordEditor } from './health-record-editor';
 import { HealthFollowUpSection } from './health-follow-up';
 import { supabase } from './supabase-client';
 
 type ScreenState =
-  | { kind: 'configuration-needed' }
-  | { kind: 'signed-out' }
-  | { kind: 'signing-in' }
   | { kind: 'loading' }
   | {
       kind: 'ready';
@@ -36,27 +33,12 @@ type EvidenceSource = {
 
 type FeedbackJudgement = 'useful' | 'not-useful' | 'concerning';
 
-export function HealthInvestigationScreen() {
-  const [email, setEmail] = useState('owner@local.invalid');
-  const [password, setPassword] = useState('');
-  const [state, setState] = useState<ScreenState>(supabase ? { kind: 'signed-out' } : { kind: 'configuration-needed' });
+export function HealthInvestigationScreen({ ownerId }: { ownerId: string }) {
+  const [state, setState] = useState<ScreenState>({ kind: 'loading' });
 
-  async function signIn(): Promise<void> {
-    if (!supabase) {
-      return;
-    }
-
-    setState({ kind: 'signing-in' });
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error || !data.user) {
-      setState({ kind: 'error', message: 'Sign-in failed. Check the owner credentials and try again.' });
-      return;
-    }
-
-    setState({ kind: 'loading' });
-    await loadReview(data.user.id);
-  }
+  useEffect(() => {
+    void loadReview(ownerId);
+  }, [ownerId]);
 
   async function refreshReview(): Promise<void> {
     if (state.kind !== 'ready') {
@@ -166,10 +148,6 @@ export function HealthInvestigationScreen() {
     );
   }
 
-  if (state.kind === 'configuration-needed') {
-    return <ConfigurationNeeded />;
-  }
-
   if (state.kind === 'ready') {
     return (
       <InvestigationResult
@@ -186,56 +164,22 @@ export function HealthInvestigationScreen() {
     );
   }
 
-  const isBusy = state.kind === 'signing-in' || state.kind === 'loading';
-  const errorMessage = state.kind === 'error' ? state.message : null;
-
-  return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.eyebrow}>HEALTH INVESTIGATION</Text>
-      <Text style={styles.title}>Sign in to view your private record.</Text>
-      <Text style={styles.body}>
-        Your Android app reads only the Health Investigations that belong to your signed-in owner account.
-      </Text>
-      <TextInput
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        onChangeText={setEmail}
-        placeholder="Owner email"
-        style={styles.input}
-        textContentType="emailAddress"
-        value={email}
-      />
-      <TextInput
-        autoComplete="current-password"
-        onChangeText={setPassword}
-        placeholder="Password"
-        secureTextEntry
-        style={styles.input}
-        textContentType="password"
-        value={password}
-      />
-      {errorMessage ? (
-        <Text role="alert" style={styles.error}>
-          {errorMessage}
-        </Text>
-      ) : null}
-      <Pressable accessibilityRole="button" disabled={isBusy} onPress={signIn} style={styles.button}>
-        {isBusy ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Sign in</Text>}
-      </Pressable>
-    </ScrollView>
-  );
-}
-
-function ConfigurationNeeded() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>HEALTH INVESTIGATION</Text>
-      <Text style={styles.title}>Private connection required.</Text>
-      <Text style={styles.body}>
-        Configure the public Supabase URL and anonymous key in the app environment. Owner credentials and service keys
-        never belong in the app bundle.
-      </Text>
+      {state.kind === 'error' ? (
+        <>
+          <Text role="alert">{state.message}</Text>
+          <Button
+            title="Retry loading investigation"
+            onPress={() => {
+              setState({ kind: 'loading' });
+              void loadReview(ownerId);
+            }}
+          />
+        </>
+      ) : (
+        <ActivityIndicator />
+      )}
     </ScrollView>
   );
 }

@@ -31,6 +31,71 @@ More detail is in [docs/architecture.md](docs/architecture.md). The monorepo dec
 
 ## Local development
 
+### Wearable Daily Guidance (development)
+
+Android now opens on **Recent patterns**, with the existing investigation and record-entry screen available separately.
+Choose **Read wearable data** to request read-only Health Connect access to steps and recorded sleep. The app reads 21
+completed local calendar days in the foreground. It compares the last three days with the preceding available baseline
+(at least seven days). Missing records remain missing; source-origin changes prevent a comparison. Health Connect's
+native aggregation handles overlapping sources. Recorded sleep is grouped within midnight-to-midnight windows, not
+presented as a last-night or recovery score. Thresholds are exploratory display rules, not medical limits.
+
+This requires an Android native development build; **Expo Go cannot load Health Connect**. After dependency installation:
+
+```sh
+pnpm --filter @health-coach/mobile android
+```
+
+This builds and installs the development app on a connected Android device or emulator. Subsequent `pnpm dev` starts
+Metro for that development client. Configure the existing Supabase connection and owner sign-in as described below.
+Your wearable's companion app must actually share the desired records with Health Connect; a Google Fit connection alone
+does not establish availability. The screen shows measured-day coverage and source origins. No background sync or
+notifications are implemented in this slice.
+
+The calculated comparison stays on the phone until **Explain these changes with AI** is selected. The optional question
+field lets the owner ask about that comparison or supply context. This is a bounded question, not unrestricted chat:
+other health records are not retrieved, and reported context does not update the canonical record.
+
+For server explanations, set `EXPO_PUBLIC_HEALTH_COACH_API_URL` in the ignored mobile environment to the reachable private
+Next.js server URL. A physical phone needs a reachable host; an Android emulator normally uses `http://10.0.2.2:3000`.
+Release clients require HTTPS. The endpoint authenticates the Supabase bearer token and checks the configured owner,
+independently of the desktop intake's Basic authentication gate.
+
+Apply the new migration only to the intended database through the existing migration workflow. To enable paid generation,
+configure these **server-only** variables in the ignored web environment after choosing a model, reviewing provider data
+handling and authorizing its cost:
+
+```dotenv
+WEARABLE_AI_ENABLED=true
+WEARABLE_REVIEW_MODEL=provider/model-you-selected
+AI_GATEWAY_API_KEY=your-private-key
+```
+
+No model is selected by default. Without that configuration the endpoint returns the deterministic comparison without a
+model call. One generation has a 30-second timeout, 700 output-token limit and no retries. Database reservations limit
+new attempts to five per rolling 24 hours and reuse identical successful requests; this is a request bound, not a monetary
+budget. Pricing depends on the selected model and must be established before live use.
+
+The private server retains derived daily snapshots, comparisons, the owner's question, model/prompt versions, output,
+latency, token counts and optional Useful / Not useful / Concerning feedback. The model receives only calculated
+comparisons, coverage, limitations and the question, not the raw stream, full daily snapshot, genome or other records.
+SDK telemetry is disabled. Evidence-reference checks reject unavailable signals; they do **not** establish that every
+generated claim is correct. Human review must check support, causal overreach, inappropriate advice and usefulness.
+Do not enable content-capturing developer tools against private records without an explicit privacy decision.
+
+### Replay evaluation
+
+Keep cases and outputs in an ignored private location. `pnpm eval:wearable:local <path>` reads a JSON array of cases;
+each case has `snapshot` (the wearable snapshot contract), `asOf` (the original review timestamp), `expectedStatus`
+(`change`, `no-change` or `insufficient-data`), `expectedEvidenceIds` (`steps` and/or `sleepMinutes`), and optionally
+`explanation` (a captured structured model response). The snapshot's sync time must be within one hour of `asOf`, and
+its days must end before that date in its captured timezone. Replays cannot include future days.
+
+The command makes no model calls and prints aggregate pass counts only. It checks comparison outcomes, evidence
+availability and explanation structure/references; it does not grade clinical accuracy or semantic groundedness.
+Use the same private cases before/after prompt or model changes, with owner review of factual support, uncertainty,
+appropriate abstention and usefulness. No private case content belongs in Git.
+
 Prerequisites: Node 22.13+, pnpm, and Docker Desktop for local Supabase development.
 
 ```bash

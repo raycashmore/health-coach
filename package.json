@@ -27,16 +27,19 @@
     "test": "pnpm verify:local-dev && turbo run test",
     "typecheck": "turbo run typecheck",
     "verify:local-dev": "node scripts/verify-local-dev-orchestration.mjs",
-    "verify": "pnpm format:check && pnpm typecheck && pnpm test"
+    "verify": "pnpm format:check && pnpm typecheck && pnpm test",
+    "eval:wearable:local": "tsx scripts/evaluate-wearable-review.ts"
   },
   "devDependencies": {
+    "@health-coach/health-core": "workspace:^",
     "@supabase/supabase-js": "^2.112.3",
     "inngest-cli": "^1.44.0",
     "prettier": "^3.9.6",
     "supabase": "^2.115.0",
     "tsx": "^4.23.12",
     "turbo": "^2.10.11",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "zod": "^4.4.3"
   },
   "pnpm": {
     "overrides": {
