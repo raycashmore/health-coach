@@ -138,7 +138,7 @@ export function DailyGuidanceScreen() {
           </Text>
           <Text>
             {review.analysis.status === 'insufficient-data'
-              ? 'Not enough comparable data yet.'
+              ? 'Not enough recorded days for a comparison yet.'
               : review.analysis.status === 'change'
                 ? 'A recorded difference is available to explore.'
                 : 'No display threshold crossed in the comparable signals.'}
@@ -146,11 +146,19 @@ export function DailyGuidanceScreen() {
           {review.analysis.coverage.map((item) => (
             <Text key={item.metric}>
               {item.metric === 'steps' ? 'Steps' : 'Recorded sleep'}: {item.days}/21 days with records ·{' '}
-              {item.comparable ? 'comparable' : 'insufficient coverage or changing sources'}
+              {item.comparable ? 'enough recorded days to compare' : 'not enough recorded days'}
+              {' · '}
+              {item.recentDays}/3 recent days · {item.baselineDays}/18 baseline days (7 needed)
+              {item.originsChanged ? ' · contributing sources vary across days' : ''}
               {' · Sources: '}
               {item.origins.length ? item.origins.join(', ') : 'none available'}
             </Text>
           ))}
+          <Text>
+            Health Connect combines these totals using your app priorities to remove overlapping steps and sleep.
+            Changes in contributing apps can affect the totals; a recorded difference does not prove a change in your
+            activity or sleep.
+          </Text>
           {review.analysis.evidence.map((item) => (
             <View key={item.id} style={{ padding: 16, backgroundColor: '#eeeeea', gap: 8 }}>
               <Text accessibilityRole="header">{item.id === 'steps' ? 'Steps' : 'Recorded sleep'}</Text>

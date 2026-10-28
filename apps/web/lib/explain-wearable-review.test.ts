@@ -4,9 +4,19 @@ import type { WearableReviewInput } from '@health-coach/health-core/wearable-rev
 import { explainWearableReview } from './explain-wearable-review';
 
 const input: WearableReviewInput = {
-  calculationVersion: '1',
+  calculationVersion: '2',
   status: 'change',
-  coverage: [{ metric: 'steps', days: 21, comparable: true, origins: ['example.private-origin'] }],
+  coverage: [
+    {
+      metric: 'steps',
+      days: 21,
+      recentDays: 3,
+      baselineDays: 18,
+      comparable: true,
+      origins: ['example.private-origin'],
+      originsChanged: true
+    }
+  ],
   limitations: ['Wear time is unknown.'],
   evidence: [
     {
@@ -53,6 +63,8 @@ describe('bounded model explanation', () => {
     const prompt = JSON.stringify(provider.doGenerateCalls[0]?.prompt);
     expect(prompt).toContain('baselineMean');
     expect(prompt).not.toContain('example.private-origin');
+    expect(prompt).toContain('originsChanged');
+    expect(prompt).toContain('explicitly state that source or priority changes');
     expect(provider.doGenerateCalls).toHaveLength(1);
   });
   it('rejects model output referencing a signal that was not supplied', async () => {

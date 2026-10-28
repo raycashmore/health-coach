@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const wearableCalculationVersion = '1';
-export const wearablePromptVersion = '1';
+export const wearableCalculationVersion = '2';
+export const wearablePromptVersion = '2';
 export const wearableMetrics = ['steps', 'sleepMinutes'] as const;
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const measurementSchema = z.object({
@@ -65,7 +65,15 @@ export type WearableReviewInput = {
   calculationVersion: string;
   status: 'change' | 'no-change' | 'insufficient-data';
   evidence: WearableEvidence[];
-  coverage: { metric: (typeof wearableMetrics)[number]; days: number; comparable: boolean; origins: string[] }[];
+  coverage: {
+    metric: (typeof wearableMetrics)[number];
+    days: number;
+    recentDays: number;
+    baselineDays: number;
+    comparable: boolean;
+    origins: string[];
+    originsChanged: boolean;
+  }[];
   limitations: string[];
 };
 
@@ -108,9 +116,19 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
     const recent = snapshot.days.slice(-3).flatMap((day) => (day[metric] ? [day[metric]] : []));
     const baseline = snapshot.days.slice(0, -3).flatMap((day) => (day[metric] ? [day[metric]] : []));
     const originKeys = new Set(measured.map((day) => [...day[metric]!.origins].sort().join('|')));
-    const comparable = recent.length === 3 && baseline.length >= 7 && originKeys.size === 1;
+    // Native Health Connect aggregates already deduplicate activity and sleep by user priority.
+    // Contributors may vary without invalidating a comparison of the recorded totals.
+    const comparable = recent.length === 3 && baseline.length >= 7;
     const origins = [...new Set(measured.flatMap((day) => day[metric]!.origins))].sort();
-    coverage.push({ metric, days: measured.length, comparable, origins });
+    coverage.push({
+      metric,
+      days: measured.length,
+      recentDays: recent.length,
+      baselineDays: baseline.length,
+      comparable,
+      origins,
+      originsChanged: originKeys.size > 1
+    });
     if (!comparable) continue;
     const average = (items: typeof recent) => items.reduce((sum, item) => sum + item.value, 0) / items.length;
     const round = (number: number) => Math.round(number * 10) / 10;
@@ -146,9 +164,16 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
       'The short comparison is exploratory; weekday mix, travel and source changes can affect it.',
       'Only steps and recorded sleep are reviewed. Labs, genetics and other signals are not assessed.',
       ...coverage
+        .filter((item) => item.originsChanged)
+        .map(
+          (item) =>
+            `${item.metric === 'steps' ? 'Steps' : 'Recorded sleep'}: contributing sources vary across days. Source or priority changes may affect the recorded difference.`
+        ),
+      ...coverage
         .filter((item) => !item.comparable)
         .map(
-          (item) => `${item.metric}: need all 3 recent days, at least 7 baseline days and consistent source origins.`
+          (item) =>
+            `${item.metric === 'steps' ? 'Steps' : 'Recorded sleep'}: ${item.recentDays}/3 recent days and ${item.baselineDays}/18 baseline days with records. Need all 3 recent days and at least 7 baseline days.`
         )
     ]
   };

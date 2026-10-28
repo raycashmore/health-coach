@@ -36,8 +36,10 @@ More detail is in [docs/architecture.md](docs/architecture.md). The monorepo dec
 Android now opens on **Recent patterns**, with the existing investigation and record-entry screen available separately.
 Choose **Read wearable data** to request read-only Health Connect access to steps and recorded sleep. The app reads 21
 completed local calendar days in the foreground. It compares the last three days with the preceding available baseline
-(at least seven days). Missing records remain missing; source-origin changes prevent a comparison. Health Connect's
-native aggregation handles overlapping sources. Recorded sleep is grouped within midnight-to-midnight windows, not
+(at least seven days). Missing records remain missing. Health Connect's native aggregation handles overlapping activity
+and sleep sources using the owner's app priorities. Varying contributing apps do not block a comparison of recorded
+totals; they produce a visible limitation because source or priority changes can affect the difference. Coverage shows
+recent and baseline day counts separately. Recorded sleep is grouped within midnight-to-midnight windows, not
 presented as a last-night or recovery score. Thresholds are exploratory display rules, not medical limits.
 
 This requires an Android native development build; **Expo Go cannot load Health Connect**. After dependency installation:
