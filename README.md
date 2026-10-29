@@ -75,8 +75,9 @@ AI_GATEWAY_API_KEY=your-private-key
 
 No model is selected by default. Without that configuration the endpoint returns the deterministic comparison without a
 model call. Generation uses low reasoning effort, a 30-second timeout, a 2,048 output-token limit (including reasoning)
-and no retries. Gateway routing requires zero data retention and no prompt training; requests fail if those requirements
-cannot be met. OpenAI response storage and reasoning summaries are disabled. Database reservations limit
+and no retries. Gateway routing requires no prompt training. OpenAI response storage and reasoning summaries are disabled;
+this does not enable zero data retention. Standard provider abuse-monitoring retention can still apply (normally up to
+30 days for OpenAI, subject to exceptions). Database reservations limit
 new attempts to five per rolling 24 hours and reuse identical successful requests; this is a request bound, not a monetary
 budget. Pricing depends on the selected model and must be established before live use.
 

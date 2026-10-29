@@ -70,10 +70,11 @@ describe('bounded model explanation', () => {
       maxOutputTokens: 2048,
       reasoning: 'low',
       providerOptions: {
-        gateway: { zeroDataRetention: true, disallowPromptTraining: true },
+        gateway: { disallowPromptTraining: true },
         openai: { store: false, reasoningSummary: null }
       }
     });
+    expect(provider.doGenerateCalls[0]?.providerOptions?.gateway).not.toHaveProperty('zeroDataRetention');
   });
   it('rejects model output referencing a signal that was not supplied', async () => {
     await expect(

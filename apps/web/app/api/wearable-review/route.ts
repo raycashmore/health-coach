@@ -131,8 +131,24 @@ export async function POST(request: Request) {
       .eq('status', 'running');
     if (saved.error) throw new Error('Storage unavailable');
     return reply({ kind: 'ai', analysis, reviewId, explanation: result.explanation });
-  } catch {
+  } catch (error) {
     await client.from('wearable_reviews').update({ status: 'failed' }).eq('id', reviewId).eq('status', 'running');
+    const zeroRetentionUnavailable =
+      error instanceof Error &&
+      error.message.includes('Zero Data Retention') &&
+      error.message.includes('only available for Pro and Enterprise');
+    console.warn('wearable-review-failed', {
+      code: zeroRetentionUnavailable ? 'gateway-zero-retention-plan' : 'generation-or-storage'
+    });
+    if (zeroRetentionUnavailable) {
+      return reply(
+        {
+          error:
+            'Your Gateway plan does not support the required zero-retention setting. Review the server data-handling configuration before retrying.'
+        },
+        503
+      );
+    }
     return reply(
       { error: 'The explanation could not be verified or saved. The calculated comparison remains available.' },
       502

@@ -15,7 +15,7 @@ export async function explainWearableReview(input: WearableReviewInput, model: L
     output: Output.object({ schema: wearableExplanationSchema }),
     maxOutputTokens: 2048,
     providerOptions: {
-      gateway: { zeroDataRetention: true, disallowPromptTraining: true },
+      gateway: { disallowPromptTraining: true },
       openai: { store: false, reasoningSummary: null }
     },
     maxRetries: 0,

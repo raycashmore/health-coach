@@ -18,9 +18,17 @@ export function DailyGuidanceScreen() {
   const [busy, setBusy] = useState<'reading' | 'explaining' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [feedbackLocation, setFeedbackLocation] = useState<'read' | 'explain' | 'rating'>('read');
   const [question, setQuestion] = useState('');
+  const feedback = (
+    <>
+      {error ? <Text role="alert">{error}</Text> : null}
+      {message ? <Text accessibilityLiveRegion="polite">{message}</Text> : null}
+    </>
+  );
 
   async function read() {
+    setFeedbackLocation('read');
     setBusy('reading');
     setError(null);
     setMessage(null);
@@ -38,6 +46,9 @@ export function DailyGuidanceScreen() {
 
   async function explain() {
     if (!review || !supabase) return;
+    setFeedbackLocation('explain');
+    setError(null);
+    setMessage(null);
     const serverUrl = process.env.EXPO_PUBLIC_HEALTH_COACH_API_URL;
     if (!serverUrl || !/^https?:\/\//.test(serverUrl)) {
       setError('Configure the private Health Coach server URL to request an AI explanation.');
@@ -48,8 +59,6 @@ export function DailyGuidanceScreen() {
       return;
     }
     setBusy('explaining');
-    setError(null);
-    setMessage(null);
     try {
       const session = await supabase.auth.getSession();
       if (!session.data.session) throw new Error('Sign in again before requesting an explanation.');
@@ -94,6 +103,9 @@ export function DailyGuidanceScreen() {
 
   async function rate(judgement: 'useful' | 'not-useful' | 'concerning') {
     if (!supabase || !explanation) return;
+    setFeedbackLocation('rating');
+    setError(null);
+    setMessage(null);
     setBusy('explaining');
     try {
       const result = await supabase
@@ -126,8 +138,7 @@ export function DailyGuidanceScreen() {
         disabled={busy !== null}
         onPress={() => void read()}
       />
-      {error ? <Text role="alert">{error}</Text> : null}
-      {message ? <Text accessibilityLiveRegion="polite">{message}</Text> : null}
+      {feedbackLocation === 'read' ? feedback : null}
       {review ? (
         <>
           <Text>
@@ -200,6 +211,7 @@ export function DailyGuidanceScreen() {
                 disabled={busy !== null}
                 onPress={() => void explain()}
               />
+              {feedbackLocation === 'explain' ? feedback : null}
             </>
           ) : null}
         </>
@@ -224,6 +236,7 @@ export function DailyGuidanceScreen() {
               onPress={() => void rate(option)}
             />
           ))}
+          {feedbackLocation === 'rating' ? feedback : null}
         </View>
       ) : null}
     </ScrollView>

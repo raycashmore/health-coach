@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  reservationKey: 'test-reservation',
   rpc: vi.fn(),
   from: vi.fn(),
   explain: vi.fn()
@@ -10,6 +11,10 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({ auth: { getUser: mocks.getUser }, rpc: mocks.rpc, from: mocks.from })
 }));
 vi.mock('../../../lib/explain-wearable-review', () => ({ explainWearableReview: mocks.explain }));
+vi.mock('node:crypto', async (importOriginal) => {
+  const crypto = await importOriginal<typeof import('node:crypto')>();
+  return { ...crypto, randomUUID: () => mocks.reservationKey };
+});
 import { POST } from './route';
 import { dateInZone, shiftDate } from '@health-coach/health-core/wearable-review';
 
@@ -102,5 +107,41 @@ describe('private wearable review access', () => {
     });
     expect((await POST(validRequest())).status).toBe(409);
     expect(mocks.explain).not.toHaveBeenCalled();
+  });
+  it('reports a Gateway retention-plan rejection without exposing provider error content', async () => {
+    vi.stubEnv('WEARABLE_AI_ENABLED', 'true');
+    vi.stubEnv('WEARABLE_REVIEW_MODEL', 'test/model');
+    vi.stubEnv('AI_GATEWAY_API_KEY', 'test-only');
+    mocks.getUser.mockResolvedValue({ data: { user: { id: process.env.HEALTH_RECORD_OWNER_ID } }, error: null });
+    mocks.rpc.mockResolvedValue({ data: 'example-review', error: null });
+    const eq = vi.fn().mockReturnThis();
+    const update = vi.fn(() => ({ eq }));
+    mocks.from.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({
+            data: { status: 'running', input_snapshot: { reservationKey: mocks.reservationKey } },
+            error: null
+          })
+        })
+      }),
+      update
+    });
+    mocks.explain.mockRejectedValue(
+      new Error('Zero Data Retention (ZDR) is only available for Pro and Enterprise plans. PRIVATE_PROVIDER_DETAIL')
+    );
+    const log = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const response = await POST(validRequest());
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error:
+          'Your Gateway plan does not support the required zero-retention setting. Review the server data-handling configuration before retrying.'
+      });
+      expect(update).toHaveBeenCalledWith({ status: 'failed' });
+      expect(log).toHaveBeenCalledExactlyOnceWith('wearable-review-failed', { code: 'gateway-zero-retention-plan' });
+    } finally {
+      log.mockRestore();
+    }
   });
 });
