@@ -56,6 +56,14 @@ _Avoid_: Medical record, data lake
 A source-backed measurement or event tied to a point or period in time, such as a lab result, blood-pressure reading, sleep record, or exercise session.
 _Avoid_: Fact, metric
 
+**Laboratory Result**:
+A numerical result from a laboratory test, recorded with its collection time, unit, and any reference range supplied by the reporting provider. It is a Health Observation, not an interpretation or diagnosis.
+_Avoid_: Bloodwork, lab value
+
+**Manually Transcribed Laboratory Result**:
+A laboratory result entered from a third-party pathology report. It retains the provider as its source and visibly records that it was transcribed; the original report is discarded after import. It is not an owner-entered measurement.
+_Avoid_: Owner-entered lab result, self-reported lab result
+
 **Genetic Variant**:
 A source-backed record of the owner's called genotype at an identified genomic position. It is raw personal evidence that may inform a Genetic Topic Panel, not an interpretation or diagnosis.
 _Avoid_: Genetic result, genetic finding
