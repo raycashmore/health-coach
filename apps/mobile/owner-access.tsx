@@ -3,10 +3,16 @@ import type { ReactNode } from 'react';
 import { Button, ScrollView, Text, TextInput, View } from 'react-native';
 import { supabase } from './supabase-client';
 
+const prefillLocalOwner =
+  __DEV__ &&
+  /^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?\/?$/.test(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '');
+
 export function OwnerAccess({ children }: { children: (ownerId: string) => ReactNode }) {
   const [ownerId, setOwnerId] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(prefillLocalOwner ? 'owner@local.invalid' : '');
+  const [password, setPassword] = useState(
+    prefillLocalOwner ? (process.env.EXPO_PUBLIC_LOCAL_OWNER_PASSWORD ?? '') : ''
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (ownerId)
