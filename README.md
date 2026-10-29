@@ -69,12 +69,14 @@ handling and authorizing its cost:
 
 ```dotenv
 WEARABLE_AI_ENABLED=true
-WEARABLE_REVIEW_MODEL=provider/model-you-selected
+WEARABLE_REVIEW_MODEL=openai/gpt-6.1-terra
 AI_GATEWAY_API_KEY=your-private-key
 ```
 
 No model is selected by default. Without that configuration the endpoint returns the deterministic comparison without a
-model call. One generation has a 30-second timeout, 700 output-token limit and no retries. Database reservations limit
+model call. Generation uses low reasoning effort, a 30-second timeout, a 2,048 output-token limit (including reasoning)
+and no retries. Gateway routing requires zero data retention and no prompt training; requests fail if those requirements
+cannot be met. OpenAI response storage and reasoning summaries are disabled. Database reservations limit
 new attempts to five per rolling 24 hours and reuse identical successful requests; this is a request bound, not a monetary
 budget. Pricing depends on the selected model and must be established before live use.
 

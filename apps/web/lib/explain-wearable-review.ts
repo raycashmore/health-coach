@@ -11,8 +11,13 @@ export async function explainWearableReview(input: WearableReviewInput, model: L
   const startedAt = Date.now();
   const result = await generateText({
     model,
+    reasoning: 'low',
     output: Output.object({ schema: wearableExplanationSchema }),
-    maxOutputTokens: 700,
+    maxOutputTokens: 2048,
+    providerOptions: {
+      gateway: { zeroDataRetention: true, disallowPromptTraining: true },
+      openai: { store: false, reasoningSummary: null }
+    },
     maxRetries: 0,
     timeout: 30_000,
     experimental_telemetry: { isEnabled: false },

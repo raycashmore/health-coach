@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const wearableCalculationVersion = '2';
-export const wearablePromptVersion = '2';
+export const wearablePromptVersion = '3';
 export const wearableMetrics = ['steps', 'sleepMinutes'] as const;
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const measurementSchema = z.object({

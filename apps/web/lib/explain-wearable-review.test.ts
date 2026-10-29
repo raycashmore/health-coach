@@ -66,6 +66,14 @@ describe('bounded model explanation', () => {
     expect(prompt).toContain('originsChanged');
     expect(prompt).toContain('explicitly state that source or priority changes');
     expect(provider.doGenerateCalls).toHaveLength(1);
+    expect(provider.doGenerateCalls[0]).toMatchObject({
+      maxOutputTokens: 2048,
+      reasoning: 'low',
+      providerOptions: {
+        gateway: { zeroDataRetention: true, disallowPromptTraining: true },
+        openai: { store: false, reasoningSummary: null }
+      }
+    });
   });
   it('rejects model output referencing a signal that was not supplied', async () => {
     await expect(
