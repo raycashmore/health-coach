@@ -59,7 +59,8 @@ field lets the owner ask about that comparison or supply context. This is a boun
 other health records are not retrieved, and reported context does not update the canonical record.
 
 For server explanations, set `EXPO_PUBLIC_HEALTH_COACH_API_URL` in the ignored mobile environment to the reachable private
-Next.js server URL. A physical phone needs a reachable host; an Android emulator normally uses `http://10.0.2.2:3000`.
+Next.js server URL. `pnpm dev:phone` configures a physical phone to use localhost debugging tunnels; an Android emulator
+normally uses `http://10.0.2.2:3000`.
 Release clients require HTTPS. The endpoint authenticates the Supabase bearer token and checks the configured owner,
 independently of the desktop intake's Basic authentication gate.
 
@@ -80,6 +81,30 @@ this does not enable zero data retention. Standard provider abuse-monitoring ret
 30 days for OpenAI, subject to exceptions). Database reservations limit
 new attempts to five per rolling 24 hours and reuse identical successful requests; this is a request bound, not a monetary
 budget. Pricing depends on the selected model and must be established before live use.
+
+The development helpers separate configuration from a paid readiness check:
+
+```sh
+# Public catalog: newest OpenAI models, prices and supported reasoning levels; no key or paid call.
+pnpm ai:models
+
+# Optional: create a new key in an explicitly selected Vercel team (Vercel CLI required).
+# US$1 total, no renewal, seven-day expiry; writes only apps/web/.env.local and preserves existing keys.
+pnpm ai:key:create --team your-vercel-team
+
+# Explicitly authorize one synthetic generation using the configured server model and its real SDK settings.
+pnpm ai:smoke --allow-paid
+```
+
+Key setup captures CLI output privately; it never prints a credential or enables AI. If creating a key succeeds but
+saving it fails, revoke the named **Health Coach local development** key in Vercel before retrying. The smoke check
+uses invented totals, does not access health records or write a review, and reports only success, usage and latency.
+A working key alone does not prove model/account compatibility; run the explicit smoke check after changing the model
+or provider options. It is excluded from `pnpm verify` and CI.
+
+`pnpm verify` includes tooling regression tests and a narrow check for recognizable Gateway/OpenAI credentials and
+private-key headers in tracked or unignored source files. This check prints filenames only; it does not scan ignored
+private configuration or establish that a file is free of personal health data or every possible credential type.
 
 The private server retains derived daily snapshots, comparisons, the owner's question, model/prompt versions, output,
 latency, token counts and optional Useful / Not useful / Concerning feedback. The model receives only calculated
@@ -139,7 +164,7 @@ Operational Traces contain only lifecycle metadata (run ID, status, version, and
 pnpm quality:health-review:local
 ```
 
-For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `apps/mobile/.env.local` file. They are public client configuration only; the mobile app signs in as the owner and relies on Supabase row-level security. Never add `SUPABASE_SERVICE_ROLE_KEY` or an owner password to the app environment.
+For the Android app, set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `apps/mobile/.env.local` file. They are public client configuration; the mobile app signs in as the owner and relies on Supabase row-level security. Service-role keys and production passwords belong only on the server. The optional local-development prefill below uses a throwaway local account.
 
 ### Local Android sign-in
 
@@ -167,18 +192,48 @@ account, `owner@local.invalid`; it is not the production auth design.
    EXPO_PUBLIC_SUPABASE_ANON_KEY=the-anon-key-from-apps-web-env-local
    ```
 
-   On a physical Android device, replace `10.0.2.2` with the Mac's LAN IP
-   address. Do not put the service-role key, owner ID, or password in this file.
+   On a physical Android device, use `pnpm dev:phone` as described below. It configures localhost endpoints and the
+   matching public client key. It also copies the throwaway local password to `EXPO_PUBLIC_LOCAL_OWNER_PASSWORD` for
+   prefill; that value is bundled into the development client. Prefill is enabled only in development builds pointed
+   at localhost or the Android emulator. Production credentials must not be used for this account.
 
 4. Start Expo with a cleared bundle cache, then sign in as
    `owner@local.invalid` with that local-only password:
 
    ```bash
-   pnpm --filter @health-coach/mobile dev -- --clear
+   pnpm --filter @health-coach/mobile exec expo start --dev-client --clear
    ```
 
 Production authentication will use Google Sign-In, Supabase Auth/RLS, and
 platform-secure session storage.
+
+### Physical Android phone: USB or wireless debugging
+
+Install the native development build once with `pnpm --filter @health-coach/mobile android`. For wireless debugging,
+connect the phone and computer to the same Wi-Fi, enable **Developer options → Wireless debugging**, and choose
+**Pair device with pairing code**. Run `adb pair PHONE_IP:PAIRING_PORT` and enter the code at its prompt. If the paired
+phone does not connect automatically, run `adb connect PHONE_IP:CONNECTION_PORT` using the separate connection port
+on the main Wireless debugging page. Keep Wireless debugging enabled. USB also works after accepting its debugging prompt.
+
+```sh
+pnpm doctor:phone       # Diagnose the device, installed app, tunnels, local config/auth and server reachability.
+pnpm dev:phone          # Configure local endpoints, restore tunnels, start missing servers and open the installed app.
+# With multiple connected devices, add --device DEVICE_ID to either command.
+```
+
+These commands require the existing local Supabase stack and local owner account. They never start/reset/migrate a
+database, install an app, change a password, read health records or invoke a model. `dev:phone` verifies local sign-in
+before changing mobile configuration. It forwards ports 8081, 54321 and 3000 over the selected debugging connection.
+New Metro and web servers listen on loopback only; Metro prefers IPv4 so the forwarded address is reachable.
+Existing reachable servers are reused; unrelated applications on the required ports are left untouched.
+
+Keep `dev:phone` running when it starts servers; Ctrl-C stops only those servers it started. Private server output goes
+to ignored `.scratch/dev-phone/web.log` and `metro.log`, rather than the chat or repository. Existing Metro instances
+may require an app reload after environment changes. This remains a development flow requiring the computer and
+debugging connection, not a deployed daily-use app. The static `verify:local-dev` check validates task declarations;
+`doctor:phone` checks actual runtime readiness.
+
+Next.js agent-file generation is disabled; the repository's root `AGENTS.md` remains the instruction entry point.
 
 ### Database migrations
 

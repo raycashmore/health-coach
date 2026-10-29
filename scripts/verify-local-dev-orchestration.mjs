@@ -31,4 +31,6 @@ for (const [taskId, command] of expectedCommands) {
   }
 }
 
-console.log('Local development starts the web app, Android app, and Inngest Dev Server.');
+console.log(
+  'The development task graph declares web, Android and Inngest commands. Runtime readiness is checked separately by pnpm doctor:phone.'
+);
