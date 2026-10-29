@@ -20,7 +20,7 @@ const commandsByTask = new Map(
   })
 );
 const expectedCommands = new Map([
-  ['@health-coach/mobile#dev', 'expo start'],
+  ['@health-coach/mobile#dev', 'expo start --dev-client'],
   ['@health-coach/web#dev', 'INNGEST_DEV=1 next dev'],
   ['@health-coach/web#inngest:dev', 'inngest dev --no-discovery -u http://localhost:3000/api/inngest']
 ]);
@@ -31,4 +31,6 @@ for (const [taskId, command] of expectedCommands) {
   }
 }
 
-console.log('Local development starts the web app, Android app, and Inngest Dev Server.');
+console.log(
+  'The development task graph declares web, Android and Inngest commands. Runtime readiness is checked separately by pnpm doctor:phone.'
+);

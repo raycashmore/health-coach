@@ -23,7 +23,8 @@ function hasOwnerAccess(request: NextRequest): boolean {
 }
 
 export function proxy(request: NextRequest) {
-  if (hasOwnerAccess(request)) {
+  // The wearable endpoint validates a Supabase bearer token and configured owner itself.
+  if (request.nextUrl.pathname === '/api/wearable-review' || hasOwnerAccess(request)) {
     return NextResponse.next();
   }
 

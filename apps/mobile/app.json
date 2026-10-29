@@ -7,7 +7,19 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "com.example.healthcoach"
-    }
+      "package": "com.example.healthcoach",
+      "permissions": ["android.permission.health.READ_STEPS", "android.permission.health.READ_SLEEP"]
+    },
+    "plugins": [
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ]
+    ]
   }
 }
