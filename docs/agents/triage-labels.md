@@ -9,3 +9,5 @@
 | `wontfix`         | `wontfix`         | Will not be actioned                       |
 
 When a skill names a canonical triage role, apply the corresponding Linear label.
+
+These labels belong to the Ray team; look them up with that team filter.

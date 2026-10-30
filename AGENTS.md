@@ -10,17 +10,17 @@ coach** Linear project. Read the linked decision documents for the selected
 item; do not substitute GitHub Projects or infer a roadmap from commit history
 when Linear is available.
 
-Start or resume work from [Health Coach — now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c).
-The [planning map](https://linear.app/cashmore/issue/RAY-93/find-the-product-and-architecture-for-a-learning-first-personal-health)
-and [first-version specification](https://linear.app/cashmore/document/first-version-product-and-architecture-specification-8f43cf731f86)
-govern strategy; completed tracker state does not establish current acceptance.
+Start or resume work from the **now, next and later** document, found through
+the [planning records](docs/agent-instructions/issue-tracker.md#planning-records).
+The planning map and first-version specification there govern strategy; completed tracker state does not establish current acceptance.
 
 ## Operating workflow
 
 - **Resume or checkpoint:** read [tracker ownership and feedback](docs/agent-instructions/issue-tracker.md).
-- **Select, expand or accept a capability:** read [product oversight](docs/agent-instructions/product-oversight.md).
+- **Groom the backlog, select, expand or accept a capability:** read [product oversight](docs/agent-instructions/product-oversight.md).
 - **Prepare, implement, verify or publish:** read [delivery workflow](docs/agent-instructions/delivery-workflow.md).
 - **Report progress or close out:** read [progress reporting](docs/agent-instructions/progress-reporting.md).
+- **Implement visual design:** the source is `design/health-coach.pen`. Read it through the Pencil tools with the Pencil app open; when Pencil is closed, ask the owner to open it.
 - **Change domain terms or architecture:** read [domain guidance](docs/agents/domain.md) and [architecture](docs/architecture.md).
 
 Shared defaults, review roles and skills stay in their personal locations. These
