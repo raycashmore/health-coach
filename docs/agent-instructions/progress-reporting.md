@@ -7,7 +7,7 @@ decision history in the existing issue/brief. Follow
 
 ## Current handoff
 
-[Health Coach — now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c)
+The [now, next and later](issue-tracker.md#planning-records) document
 holds three sections, in order: the summary, the ranking and the current
 handoff. Grooming writes the ranking; [tracker checkpoints](issue-tracker.md#checkpoint)
 replace the summary and handoff. Start with five short lines:

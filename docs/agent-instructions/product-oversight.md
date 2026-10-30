@@ -12,12 +12,12 @@ steps, the staleness triggers and the review panel's role. Health Coach
 specifics:
 
 - Build the journey map from the
-  [first-version specification](https://linear.app/cashmore/document/first-version-product-and-architecture-specification-8f43cf731f86),
+  [first-version specification](issue-tracker.md#planning-records),
   including open proposals and reassessments recorded there.
 - Candidates are Health coach project issues. Proposed items carry the
   `needs-triage` label until groomed.
 - Write the ranking to the “Ranking” section of
-  [now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c),
+  [now, next and later](issue-tracker.md#planning-records),
   with links, one-line reasons, the date and a reset slices-since-grooming count.
 - Mirror it in Linear: Now is Todo with High priority; Next is Backlog with
   Medium; Later is Backlog with Low; Not doing is Canceled with a reason comment.

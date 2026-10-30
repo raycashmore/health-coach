@@ -1,18 +1,27 @@
 # Issue tracker: Linear
 
-Use the [Health coach project](https://linear.app/cashmore/project/health-coach-46845a6a58e3).
 Linear owns planning; the repository owns reusable operating guidance.
+
+## Planning records
+
+Find these with the Linear tools by the reference shown.
+
+| Record                                    | Linear reference          |
+| ----------------------------------------- | ------------------------- |
+| Project                                   | "Health coach" (Ray team) |
+| Now, next and later (ranking and handoff) | document `878de48e456c`   |
+| First-version specification               | document `8f43cf731f86`   |
+| Planning map                              | issue `RAY-93`            |
 
 ## Start or resume
 
-1. Read [Health Coach — now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c):
-   its ranking, last-groomed date and current handoff. Then read the in-progress
-   or Now issue and existing brief. Recover evidence, remaining gates, authority
-   and the resume action before choosing work.
-2. At grooming or expansion, read the
-   [planning map](https://linear.app/cashmore/issue/RAY-93/find-the-product-and-architecture-for-a-learning-first-personal-health),
-   [first-version specification](https://linear.app/cashmore/document/first-version-product-and-architecture-specification-8f43cf731f86)
-   and relevant feedback. Load further history for unresolved questions.
+1. Read the **now, next and later** document: its ranking, last-groomed date
+   and current handoff. Then read the in-progress or Now issue and existing
+   brief. Recover evidence, remaining gates, authority and the resume action
+   before choosing work.
+2. At grooming or expansion, read the **planning map**, **first-version
+   specification** and relevant feedback. Load further history for unresolved
+   questions.
 3. Verify consequential completion claims against linked evidence. Historical
    Done issues and the completed project state are history, not current runtime
    proof or instructions to reopen them. Documents may be attached to historical
