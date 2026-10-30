@@ -182,13 +182,20 @@ export async function phoneDevelopment({ start, requestedDevice }) {
         ...web,
         INNGEST_DEV: '1'
       });
-    if (states.metro !== 'ready')
+    if (states.metro !== 'ready') {
+      // CI disables Metro's file watching, so edits would never reach the phone; stdin is ignored, so Expo cannot prompt.
+      const { CI: _ci, ...environment } = process.env;
       launch('metro', ['--filter', '@health-coach/mobile', 'exec', 'expo', 'start', '--dev-client', '--localhost'], {
-        ...process.env,
+        ...environment,
         ...readEnvironment(mobileEnvironmentPath),
-        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`,
-        CI: '1'
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`
       });
+      launch(
+        'typecheck',
+        ['--filter', '@health-coach/mobile', 'exec', 'tsc', '--noEmit', '--watch', '--preserveWatchOutput'],
+        environment
+      );
+    }
     await Promise.all([
       waitForService(
         'http://127.0.0.1:3000/api/wearable-review',
