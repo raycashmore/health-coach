@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
 import { formatChange, formatDate, formatDateRange, formatMetric, formatTime } from './format';
 
-it('formats calendar dates without shifting the day', () => {
+it('formats calendar dates as is and timestamps by their local day', () => {
   expect(formatDate('2026-10-27', 2026)).toBe('27 Oct');
-  expect(formatDate('2025-01-03T23:30:00Z', 2026)).toBe('3 Jan 2025');
+  expect(formatDate(new Date(2025, 0, 3, 0, 30).toISOString(), 2026)).toBe('3 Jan 2025');
 });
 
 it('formats date ranges compactly', () => {

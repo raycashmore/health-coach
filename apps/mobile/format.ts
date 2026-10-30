@@ -1,17 +1,20 @@
-import type { wearableMetrics } from '@health-coach/health-core/wearable-review';
-
-type Metric = (typeof wearableMetrics)[number];
+import type { WearableMetric } from './wearable-labels';
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Hermes support for Intl options varies by device ICU; grouping is the only Intl feature relied on.
 const grouped = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
 
 function parts(date: string) {
-  const [year, month, day] = date.slice(0, 10).split('-').map(Number);
+  if (date.length > 10) {
+    // Timestamps show the local calendar day they happened on, not their UTC date.
+    const instant = new Date(date);
+    return { year: instant.getFullYear(), month: months[instant.getMonth()]!, day: instant.getDate() };
+  }
+  const [year, month, day] = date.split('-').map(Number);
   return { year: year!, month: months[month! - 1]!, day: day! };
 }
 
-/** Formats a calendar date string (YYYY-MM-DD or ISO) without timezone conversion. */
+/** Formats a calendar date (YYYY-MM-DD) as is, or a timestamp by its local day. */
 export function formatDate(date: string, currentYear = new Date().getFullYear()): string {
   const { year, month, day } = parts(date);
   return year === currentYear ? `${day} ${month}` : `${day} ${month} ${year}`;
@@ -41,21 +44,17 @@ function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
-function formatMagnitude(metric: Metric, value: number): string {
+function formatMagnitude(metric: WearableMetric, value: number): string {
   return metric === 'steps' ? grouped.format(value) : formatDuration(value);
 }
 
-/** Daily values are rounded to whole steps or minutes before display and comparison. */
-export function roundMetric(value: number): number {
-  return Math.round(value);
+export function formatMetric(metric: WearableMetric, value: number): string {
+  return formatMagnitude(metric, Math.round(value));
 }
 
-export function formatMetric(metric: Metric, value: number): string {
-  return formatMagnitude(metric, roundMetric(value));
-}
-
-export function formatChange(metric: Metric, baseline: number, recent: number): string {
-  const change = roundMetric(recent) - roundMetric(baseline);
+export function formatChange(metric: WearableMetric, baseline: number, recent: number): string {
+  // Derive the change from the displayed whole values so the row adds up.
+  const change = Math.round(recent) - Math.round(baseline);
   if (change === 0) return '0';
   return `${change > 0 ? '+' : '−'}${formatMagnitude(metric, Math.abs(change))}`;
 }

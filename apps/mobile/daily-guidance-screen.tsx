@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { validateWearableExplanation } from '@health-coach/health-core/wearable-review';
 import type { WearableExplanation, WearableReviewInput } from '@health-coach/health-core/wearable-review';
@@ -20,8 +20,8 @@ type Explanation = { completedBefore: string; reviewId: string; content: Wearabl
 
 const headlines = {
   'insufficient-data': 'Not enough data yet.',
-  change: 'Your last 3 days look different.',
-  'no-change': 'Your last 3 days look typical.'
+  change: 'Your last 3 days differ from your baseline.',
+  'no-change': 'No large change from your baseline.'
 } satisfies Record<WearableReviewInput['status'], string>;
 
 function coverageGap(item: WearableReviewInput['coverage'][number]): string {
@@ -40,6 +40,14 @@ export function DailyGuidanceScreen() {
   const [question, setQuestion] = useState('');
   const scrollView = useRef<ScrollView>(null);
   const questionTop = useRef(0);
+  const pendingReveal = useRef<{ remove: () => void } | null>(null);
+
+  function cancelReveal() {
+    pendingReveal.current?.remove();
+    pendingReveal.current = null;
+  }
+
+  useEffect(() => cancelReveal, []);
 
   const feedback = (
     <>
@@ -65,10 +73,18 @@ export function DailyGuidanceScreen() {
       return;
     }
     // Scroll after the keyboard has resized the view; earlier offsets are clamped to the old height.
+    cancelReveal();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const subscription = Keyboard.addListener('keyboardDidShow', () => {
       subscription.remove();
-      setTimeout(scrollToQuestion, 150);
+      timer = setTimeout(scrollToQuestion, 150);
     });
+    pendingReveal.current = {
+      remove: () => {
+        subscription.remove();
+        clearTimeout(timer);
+      }
+    };
   }
 
   async function explain() {
@@ -183,12 +199,22 @@ export function DailyGuidanceScreen() {
         <View style={styles.group}>
           {evidence.length ? <BaselineComparison evidence={evidence} /> : null}
           {review.analysis.coverage
-            .filter((item) => !item.comparable)
+            .filter((item) => !item.comparable && !review.blocked.includes(item.metric))
             .map((item) => (
               <Text key={item.metric} style={typography.note}>
                 {coverageGap(item)}
               </Text>
             ))}
+          {review.blocked.length ? (
+            <View style={styles.inline}>
+              <Text style={typography.note}>
+                {review.blocked.map((metric) => metricLabels[metric]).join(' and ')} access is off.
+              </Text>
+              <Pressable accessibilityRole="button" hitSlop={12} onPress={() => void openHealthConnectSettings()}>
+                <Text style={styles.link}>Open Health Connect</Text>
+              </Pressable>
+            </View>
+          ) : null}
           {failure ? (
             <View style={styles.inline}>
               <Text role="alert" style={typography.alert}>
@@ -217,6 +243,7 @@ export function DailyGuidanceScreen() {
             value={question}
             onChangeText={setQuestion}
             onFocus={revealQuestion}
+            onBlur={cancelReveal}
             editable={!busy}
             style={field.input}
           />

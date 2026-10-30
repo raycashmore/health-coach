@@ -3,13 +3,14 @@ import { AppState } from 'react-native';
 import { buildWearableReview, dateInZone } from '@health-coach/health-core/wearable-review';
 import type { WearableReviewInput, WearableSnapshot } from '@health-coach/health-core/wearable-review';
 import { HealthConnectPermissionError, readWearableSnapshot } from './read-wearable-snapshot';
+import type { WearableRead } from './read-wearable-snapshot';
 
-export type WearableReview = { snapshot: WearableSnapshot; analysis: WearableReviewInput };
+export type WearableReview = WearableRead & { analysis: WearableReviewInput };
 export type ReadFailure = { message: string; needsPermission: boolean };
 
 const staleAfterMs = 30 * 60 * 1000;
 
-function isStale(snapshot: WearableSnapshot, now = new Date()): boolean {
+export function isStale(snapshot: WearableSnapshot, now = new Date()): boolean {
   return (
     now.getTime() - Date.parse(snapshot.syncedAt) > staleAfterMs ||
     dateInZone(now, snapshot.timeZone) !== snapshot.completedBefore
@@ -30,8 +31,8 @@ export function useWearableReview() {
     setReading(true);
     setFailure(null);
     try {
-      const snapshot = await readWearableSnapshot();
-      const next = { snapshot, analysis: buildWearableReview(snapshot) };
+      const read = await readWearableSnapshot();
+      const next = { ...read, analysis: buildWearableReview(read.snapshot) };
       latest.current = next;
       setReview(next);
     } catch (error) {
@@ -51,7 +52,7 @@ export function useWearableReview() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      // Only a previously successful read refreshes itself, so a denied permission is never re-prompted unasked.
+      // Only a previously successful read refreshes itself; with no review there is nothing stale to replace.
       if (state === 'active' && latest.current && isStale(latest.current.snapshot)) void refresh();
     });
     return () => subscription.remove();

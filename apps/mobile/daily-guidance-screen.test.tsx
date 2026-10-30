@@ -62,19 +62,31 @@ async function press(title: string) {
   });
 }
 
-it('shows a rejected explanation beside its action and leaves the calculated evidence available', async () => {
+/** A current read with steady steps and no sleep records; blocked metrics have no read access. */
+function stepsOnlyRead(blocked: string[] = []) {
   const now = new Date();
   const completedBefore = dateInZone(now, 'UTC');
-  mocks.read.mockResolvedValue({
-    timeZone: 'UTC',
-    completedBefore,
-    syncedAt: now.toISOString(),
-    days: Array.from({ length: 21 }, (_, index) => ({
-      date: shiftDate(completedBefore, index - 21),
-      steps: { value: 5000, origins: ['example.source'] },
-      sleepMinutes: null
-    }))
-  });
+  return {
+    blocked,
+    snapshot: {
+      timeZone: 'UTC',
+      completedBefore,
+      syncedAt: now.toISOString(),
+      days: Array.from({ length: 21 }, (_, index) => ({
+        date: shiftDate(completedBefore, index - 21),
+        steps: { value: 5000, origins: ['example.source'] },
+        sleepMinutes: null
+      }))
+    }
+  };
+}
+
+function texts(): string[] {
+  return root.container.queryAll((node) => node.type === 'Text').map(text);
+}
+
+it('shows a rejected explanation beside its action and leaves the calculated evidence available', async () => {
+  mocks.read.mockResolvedValue(stepsOnlyRead());
   mocks.session.mockResolvedValue({ data: { session: { access_token: 'test-only' } } });
   const error = 'The model service is unavailable. Your comparison is still available.';
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ error }), { status: 503 }));
@@ -90,7 +102,7 @@ it('shows a rejected explanation beside its action and leaves the calculated evi
   expect(labels.slice(action - 1, action + 2)).toContain(error);
   expect(root.container.queryAll((node) => node.props.role === 'alert').map(text)).toEqual([error]);
   const headers = root.container.queryAll((node) => node.props.accessibilityRole === 'header').map(text);
-  expect(headers).toContain('Your last 3 days look typical.');
+  expect(headers).toContain('No large change from your baseline.');
   expect(headers).toContain('Steps');
   expect(labels).toContain('5,000 → 5,000 a day');
   expect(mocks.read).toHaveBeenCalledOnce();
@@ -98,18 +110,7 @@ it('shows a rejected explanation beside its action and leaves the calculated evi
 });
 
 it('keeps coverage detail one step away behind the sources disclosure', async () => {
-  const now = new Date();
-  const completedBefore = dateInZone(now, 'UTC');
-  mocks.read.mockResolvedValue({
-    timeZone: 'UTC',
-    completedBefore,
-    syncedAt: now.toISOString(),
-    days: Array.from({ length: 21 }, (_, index) => ({
-      date: shiftDate(completedBefore, index - 21),
-      steps: { value: 5000, origins: ['example.source'] },
-      sleepMinutes: null
-    }))
-  });
+  mocks.read.mockResolvedValue(stepsOnlyRead());
   await act(async () => {
     root.render(<DailyGuidanceScreen />);
   });
@@ -130,4 +131,33 @@ it('reads automatically and offers Health Connect when access is off', async () 
   expect(headers).toContain('Steps and sleep access is off.');
   await press('Open Health Connect');
   expect(mocks.openSettings).toHaveBeenCalledOnce();
+});
+
+it('says when a metric has no read access instead of reporting missing days', async () => {
+  mocks.read.mockResolvedValue(stepsOnlyRead(['sleepMinutes']));
+  await act(async () => {
+    root.render(<DailyGuidanceScreen />);
+  });
+  expect(texts()).toContain('Sleep access is off.');
+  expect(texts().some((value) => value.startsWith('Sleep: '))).toBe(false);
+  await press('Open Health Connect');
+  expect(mocks.openSettings).toHaveBeenCalledOnce();
+});
+
+it('keeps the last review when a refresh fails and offers a retry', async () => {
+  mocks.read.mockResolvedValueOnce(stepsOnlyRead()).mockRejectedValueOnce(new Error('Health Connect is unavailable.'));
+  await act(async () => {
+    root.render(<DailyGuidanceScreen />);
+  });
+  const [scrollView] = root.container.queryAll((node) => node.type === 'ScrollView');
+  const onRefresh: unknown = scrollView?.props.refreshControl.props.onRefresh;
+  if (typeof onRefresh !== 'function') throw new Error('Expected pull to refresh.');
+  await act(async () => {
+    onRefresh();
+  });
+  expect(root.container.queryAll((node) => node.props.role === 'alert').map(text)).toEqual(['Couldn’t update.']);
+  expect(texts()).toContain('5,000 → 5,000 a day');
+  mocks.read.mockResolvedValueOnce(stepsOnlyRead());
+  await press('Try again');
+  expect(root.container.queryAll((node) => node.props.role === 'alert')).toHaveLength(0);
 });

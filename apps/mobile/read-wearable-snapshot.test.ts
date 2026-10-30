@@ -32,8 +32,20 @@ describe('foreground wearable read', () => {
       { accessType: 'read', recordType: 'SleepSession' }
     ]);
     health.aggregateRecord.mockResolvedValue({ COUNT_TOTAL: 5000, SLEEP_DURATION_TOTAL: 0, dataOrigins: [] });
-    await readWearableSnapshot();
+    const { blocked } = await readWearableSnapshot();
     expect(health.requestPermission).not.toHaveBeenCalled();
+    expect(blocked).toEqual([]);
+  });
+  it('keeps a partial grant without prompting again and reports the blocked metric', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-28T03:00:00Z'));
+    health.initialize.mockResolvedValue(true);
+    health.getGrantedPermissions.mockResolvedValue([{ accessType: 'read', recordType: 'Steps' }]);
+    health.aggregateRecord.mockResolvedValue({ COUNT_TOTAL: 5000, dataOrigins: ['example.source'] });
+    const { blocked, snapshot } = await readWearableSnapshot();
+    expect(health.requestPermission).not.toHaveBeenCalled();
+    expect(blocked).toEqual(['sleepMinutes']);
+    expect(snapshot.days.every((day) => day.sleepMinutes === null)).toBe(true);
   });
   it('preserves missing origins as missing data and converts native sleep seconds to minutes', async () => {
     vi.useFakeTimers();
@@ -49,7 +61,7 @@ describe('foreground wearable read', () => {
         ? { COUNT_TOTAL: 0, dataOrigins: [] }
         : { SLEEP_DURATION_TOTAL: 25200, dataOrigins: ['example.source'] }
     );
-    const snapshot = await readWearableSnapshot();
+    const { snapshot } = await readWearableSnapshot();
     expect(snapshot.days.every((day) => day.steps === null)).toBe(true);
     expect(snapshot.days.every((day) => day.sleepMinutes?.value === 420)).toBe(true);
     expect(snapshot.days.at(-1)?.date).not.toBe(snapshot.completedBefore);
