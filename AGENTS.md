@@ -21,6 +21,7 @@ govern strategy; completed tracker state does not establish current acceptance.
 - **Groom the backlog, select, expand or accept a capability:** read [product oversight](docs/agent-instructions/product-oversight.md).
 - **Prepare, implement, verify or publish:** read [delivery workflow](docs/agent-instructions/delivery-workflow.md).
 - **Report progress or close out:** read [progress reporting](docs/agent-instructions/progress-reporting.md).
+- **Implement visual design:** the source is `design/health-coach.pen`. Read it through the Pencil tools with the Pencil app open; when Pencil is closed, ask the owner to open it.
 - **Change domain terms or architecture:** read [domain guidance](docs/agents/domain.md) and [architecture](docs/architecture.md).
 
 Shared defaults, review roles and skills stay in their personal locations. These
