@@ -3,7 +3,7 @@ import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { useFonts } from 'expo-font';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNavigation } from './bottom-navigation';
@@ -25,9 +25,10 @@ export function App() {
             {(ownerId, signOut) => (
               <>
                 <TopBar onSignOut={signOut} />
-                <View style={styles.content}>
+                {/* Edge-to-edge Android no longer resizes the window for the keyboard, so lift the content here. */}
+                <KeyboardAvoidingView behavior="padding" style={styles.content}>
                   {destination === 'coach' ? <DailyGuidanceScreen /> : <HealthInvestigationScreen ownerId={ownerId} />}
-                </View>
+                </KeyboardAvoidingView>
                 <BottomNavigation current={destination} onNavigate={setDestination} />
               </>
             )}

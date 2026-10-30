@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('react-native', () => ({
   AppState: { addEventListener: () => ({ remove: () => undefined }) },
+  Keyboard: { addListener: () => ({ remove: () => undefined }), isVisible: () => false },
   Pressable: 'Pressable',
   RefreshControl: 'RefreshControl',
   ScrollView: 'ScrollView',

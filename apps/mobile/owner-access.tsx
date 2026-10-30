@@ -46,14 +46,7 @@ export function OwnerAccess({ children }: { children: (ownerId: string, signOut:
     <View style={styles.screen}>
       <TopBar />
       <ScrollView contentContainerStyle={layout.screen} keyboardShouldPersistTaps="handled">
-        <ScreenLead context="Private owner access" headline="Understand recent changes in your wearable record.">
-          <Text style={typography.note}>
-            Steps and recorded sleep are read only when you choose. A local comparison stays on your phone. Requesting
-            an AI explanation sends derived daily totals to your private server, and calculated comparisons plus your
-            question to the configured model; private review snapshots are retained for evaluation. No health actions
-            are performed.
-          </Text>
-        </ScreenLead>
+        <ScreenLead context="Private owner access" headline="Understand recent changes in your wearable record." />
         {!supabase ? (
           <Text style={typography.alert}>Configure the Supabase connection before signing in.</Text>
         ) : (

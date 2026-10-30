@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Keyboard, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { validateWearableExplanation } from '@health-coach/health-core/wearable-review';
 import type { WearableExplanation, WearableReviewInput } from '@health-coach/health-core/wearable-review';
 import { ActionButton } from './action-button';
@@ -12,7 +12,7 @@ import { RatingButtons } from './rating-buttons';
 import type { RatingJudgement } from './rating-buttons';
 import { ScreenLead } from './screen-lead';
 import { SectionHeading } from './section-heading';
-import { colors, field, fonts, layout, rule, typography } from './theme';
+import { colors, field, fonts, layout, rule, spacing, typography } from './theme';
 import { useWearableReview } from './use-wearable-review';
 import { metricLabels } from './wearable-labels';
 
@@ -38,6 +38,9 @@ export function DailyGuidanceScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [feedbackLocation, setFeedbackLocation] = useState<'explain' | 'rating'>('explain');
   const [question, setQuestion] = useState('');
+  const scrollView = useRef<ScrollView>(null);
+  const questionTop = useRef(0);
+
   const feedback = (
     <>
       {error ? (
@@ -52,6 +55,21 @@ export function DailyGuidanceScreen() {
       ) : null}
     </>
   );
+  function scrollToQuestion() {
+    scrollView.current?.scrollTo({ y: Math.max(0, questionTop.current - spacing.margin) });
+  }
+
+  function revealQuestion() {
+    if (Keyboard.isVisible()) {
+      scrollToQuestion();
+      return;
+    }
+    // Scroll after the keyboard has resized the view; earlier offsets are clamped to the old height.
+    const subscription = Keyboard.addListener('keyboardDidShow', () => {
+      subscription.remove();
+      setTimeout(scrollToQuestion, 150);
+    });
+  }
 
   async function explain() {
     if (!review || !supabase) return;
@@ -137,6 +155,7 @@ export function DailyGuidanceScreen() {
 
   return (
     <ScrollView
+      ref={scrollView}
       contentContainerStyle={layout.screen}
       keyboardShouldPersistTaps="handled"
       refreshControl={
@@ -187,7 +206,7 @@ export function DailyGuidanceScreen() {
         </View>
       ) : null}
       {evidence.length ? (
-        <View style={styles.group}>
+        <View onLayout={(event) => (questionTop.current = event.nativeEvent.layout.y)} style={styles.group}>
           <View style={rule.light} />
           <TextInput
             accessibilityLabel="Question about these wearable patterns"
@@ -197,6 +216,7 @@ export function DailyGuidanceScreen() {
             maxLength={500}
             value={question}
             onChangeText={setQuestion}
+            onFocus={revealQuestion}
             editable={!busy}
             style={field.input}
           />
