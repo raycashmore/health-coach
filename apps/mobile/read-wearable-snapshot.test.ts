@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const health = vi.hoisted(() => ({ initialize: vi.fn(), requestPermission: vi.fn(), aggregateRecord: vi.fn() }));
+const health = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  getGrantedPermissions: vi.fn(),
+  requestPermission: vi.fn(),
+  aggregateRecord: vi.fn()
+}));
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 vi.mock('react-native-health-connect', () => health);
-import { readWearableSnapshot } from './read-wearable-snapshot';
+import { HealthConnectPermissionError, readWearableSnapshot } from './read-wearable-snapshot';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -13,14 +18,28 @@ afterEach(() => {
 describe('foreground wearable read', () => {
   it('handles denied permissions without reading measurements', async () => {
     health.initialize.mockResolvedValue(true);
+    health.getGrantedPermissions.mockResolvedValue([]);
     health.requestPermission.mockResolvedValue([]);
-    await expect(readWearableSnapshot()).rejects.toThrow('No read permissions');
+    await expect(readWearableSnapshot()).rejects.toThrow(HealthConnectPermissionError);
     expect(health.aggregateRecord).not.toHaveBeenCalled();
+  });
+  it('reads without prompting once access is granted', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-28T03:00:00Z'));
+    health.initialize.mockResolvedValue(true);
+    health.getGrantedPermissions.mockResolvedValue([
+      { accessType: 'read', recordType: 'Steps' },
+      { accessType: 'read', recordType: 'SleepSession' }
+    ]);
+    health.aggregateRecord.mockResolvedValue({ COUNT_TOTAL: 5000, SLEEP_DURATION_TOTAL: 0, dataOrigins: [] });
+    await readWearableSnapshot();
+    expect(health.requestPermission).not.toHaveBeenCalled();
   });
   it('preserves missing origins as missing data and converts native sleep seconds to minutes', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-28T03:00:00Z'));
     health.initialize.mockResolvedValue(true);
+    health.getGrantedPermissions.mockResolvedValue([]);
     health.requestPermission.mockResolvedValue([
       { accessType: 'read', recordType: 'Steps' },
       { accessType: 'read', recordType: 'SleepSession' }
@@ -40,6 +59,7 @@ describe('foreground wearable read', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-07T03:00:00Z'));
     health.initialize.mockResolvedValue(true);
+    health.getGrantedPermissions.mockResolvedValue([]);
     health.requestPermission.mockResolvedValue([{ accessType: 'read', recordType: 'Steps' }]);
     health.aggregateRecord.mockResolvedValue({ COUNT_TOTAL: 5000, dataOrigins: ['example.source'] });
     await readWearableSnapshot();

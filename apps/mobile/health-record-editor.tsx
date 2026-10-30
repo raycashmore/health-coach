@@ -7,7 +7,9 @@ import {
   type BloodPressureDraft,
   type SupplementRegimenDraft
 } from './health-record-entry';
+import { dateInZone } from '@health-coach/health-core/wearable-review';
 import { ActionButton } from './action-button';
+import { formatDate } from './format';
 import { removeById, upsertById } from './health-record-editor-state';
 import { SectionHeading } from './section-heading';
 import { supabase } from './supabase-client';
@@ -30,14 +32,20 @@ type SupplementRegimen = {
   ingredient: string;
 };
 
-const emptyBloodPressureDraft: BloodPressureDraft = { date: '', diastolicMmhg: '', pulseBpm: '', systolicMmhg: '' };
-const emptySupplementDraft: SupplementRegimenDraft = {
-  activeFrom: '',
+const today = () => dateInZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+const emptyBloodPressureDraft = (): BloodPressureDraft => ({
+  date: today(),
+  diastolicMmhg: '',
+  pulseBpm: '',
+  systolicMmhg: ''
+});
+const emptySupplementDraft = (): SupplementRegimenDraft => ({
+  activeFrom: today(),
   dose: '',
   form: '',
   frequency: '',
   ingredient: ''
-};
+});
 
 export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
   const [bloodPressureDraft, setBloodPressureDraft] = useState<BloodPressureDraft>(emptyBloodPressureDraft);
@@ -176,7 +184,7 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
           systolicMmhg: data.systolic_mmhg
         })
       );
-      setBloodPressureDraft(emptyBloodPressureDraft);
+      setBloodPressureDraft(emptyBloodPressureDraft());
     }
     setIsSaving(false);
   }
@@ -192,7 +200,7 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
     setError(null);
     const sourceId = await ensureOwnerSource(entry.source);
     if (!sourceId) {
-      setError('Your Supplement Regimen could not be saved.');
+      setError('Your supplement could not be saved.');
       setIsSaving(false);
       return;
     }
@@ -214,7 +222,7 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
       .single();
 
     if (saveError || !data) {
-      setError('Your Supplement Regimen could not be saved.');
+      setError('Your supplement could not be saved.');
     } else {
       const saved = {
         activeFrom: data.active_from,
@@ -226,7 +234,7 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
       };
       setRegimens((current) => upsertById(current, saved));
       setSelectedRegimenId(null);
-      setSupplementDraft(emptySupplementDraft);
+      setSupplementDraft(emptySupplementDraft());
     }
     setIsSaving(false);
   }
@@ -243,12 +251,12 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
       .eq('id', id)
       .eq('owner_id', ownerId);
     if (endError) {
-      setError('Your Supplement Regimen could not be ended.');
+      setError('Your supplement could not be ended.');
     } else {
       setRegimens((current) => removeById(current, id));
       if (selectedRegimenId === id) {
         setSelectedRegimenId(null);
-        setSupplementDraft(emptySupplementDraft);
+        setSupplementDraft(emptySupplementDraft());
       }
     }
     setIsSaving(false);
@@ -268,9 +276,6 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
   return (
     <View style={styles.section}>
       <SectionHeading title="Your entries" />
-      <Text style={typography.note}>
-        Owner-entered readings and regimens stay source-backed in your private record.
-      </Text>
       <Text accessibilityRole="header" style={styles.subheading}>
         Blood pressure
       </Text>
@@ -300,12 +305,12 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
       <ActionButton disabled={isSaving} label="Save reading" onPress={saveBloodPressure} />
       {bloodPressureReadings.map((reading) => (
         <Text key={reading.id} style={styles.item}>
-          {reading.recordedAt.slice(0, 10)} · {reading.systolicMmhg}/{reading.diastolicMmhg} mmHg
+          {formatDate(reading.recordedAt)} · {reading.systolicMmhg}/{reading.diastolicMmhg} mmHg
           {reading.pulseBpm ? ` · pulse ${reading.pulseBpm}` : ''}
         </Text>
       ))}
       <Text accessibilityRole="header" style={styles.subheading}>
-        Active Supplement Regimens
+        Supplements
       </Text>
       <Field
         label="Ingredient"
@@ -334,7 +339,7 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
       />
       <ActionButton
         disabled={isSaving}
-        label={selectedRegimenId ? 'Save changes' : 'Add Supplement Regimen'}
+        label={selectedRegimenId ? 'Save changes' : 'Add supplement'}
         onPress={saveSupplementRegimen}
       />
       {regimens.map((regimen) => (
@@ -342,7 +347,7 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
           <Text style={styles.item}>
             {regimen.ingredient} · {regimen.dose} {regimen.form} · {regimen.frequency}
           </Text>
-          <Text style={typography.meta}>Active since {regimen.activeFrom.slice(0, 10)}</Text>
+          <Text style={typography.meta}>Active since {formatDate(regimen.activeFrom)}</Text>
           <View style={styles.row}>
             <ActionButton disabled={isSaving} label="Edit" onPress={() => editRegimen(regimen)} variant="secondary" />
             <ActionButton

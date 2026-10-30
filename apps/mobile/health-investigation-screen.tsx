@@ -12,6 +12,7 @@ import { HealthFollowUpSection } from './health-follow-up';
 import { supabase } from './supabase-client';
 import { RatingButtons } from './rating-buttons';
 import type { RatingJudgement } from './rating-buttons';
+import { formatDate } from './format';
 import { ScreenLead } from './screen-lead';
 import { SectionHeading } from './section-heading';
 import { colors, layout, typography } from './theme';
@@ -214,10 +215,10 @@ function InvestigationResult({
 }) {
   const sourceStatus =
     sourceCount === 0
-      ? 'No sources are connected yet. Import data privately on the web to begin a Health Review.'
-      : `${sourceCount} private ${sourceCount === 1 ? 'source is' : 'sources are'} connected and available for a bounded Health Review.`;
+      ? 'No sources connected yet. Import data on the web to begin.'
+      : `${sourceCount} ${sourceCount === 1 ? 'source' : 'sources'} connected.`;
   const workStatus = reviewWorkState
-    ? `A background Health Review is ${reviewWorkState === 'queued' ? 'queued' : 'running'}.`
+    ? `A Health Review is ${reviewWorkState === 'queued' ? 'queued' : 'running'}.`
     : null;
 
   if (!investigation) {
@@ -241,20 +242,19 @@ function InvestigationResult({
       <HealthRecordEditor key={ownerId} ownerId={ownerId} />
       <View style={styles.group}>
         <Text accessibilityRole="header" style={styles.investigationTitle}>
-          {investigation.resultType.replaceAll('-', ' ')}
+          {sentenceCase(investigation.resultType.replaceAll('-', ' '))}
         </Text>
         <Text style={typography.body}>{investigation.summary}</Text>
       </View>
       <View style={styles.group}>
         <SectionHeading title="Why this was surfaced" />
         <Text style={typography.note}>
-          {investigation.panelId.replaceAll('-', ' ')} panel v{investigation.panelVersion} reviewed{' '}
-          {investigation.personalEvidenceCount} private{' '}
+          Based on {investigation.personalEvidenceCount}{' '}
           {investigation.personalEvidenceCount === 1 ? 'record' : 'records'}.
         </Text>
         {evidenceSources.map((source) => (
           <Text key={source.id} style={typography.meta}>
-            Source: {source.provider}, {source.verificationState}, imported {source.importedAt.slice(0, 10)}.
+            {source.provider} · {source.verificationState} · imported {formatDate(source.importedAt)}
           </Text>
         ))}
         <Text style={typography.meta}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
@@ -266,7 +266,7 @@ function InvestigationResult({
         investigationId={investigation.id}
         ownerId={ownerId}
       />
-      <Text style={typography.meta}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
+      <Text style={typography.meta}>Reviewed {formatDate(investigation.createdAt)}</Text>
     </ScrollView>
   );
 }
@@ -310,9 +310,6 @@ function HealthInvestigationFeedback({
   return (
     <View style={styles.group}>
       <SectionHeading title="Was this review useful?" />
-      <Text style={typography.note}>
-        Your private rating helps assess the Health Review. It does not change care advice.
-      </Text>
       <RatingButtons disabled={isSaving} onRate={(option) => void saveJudgement(option)} selected={judgement} />
       {saveError ? (
         <Text role="alert" style={typography.alert}>
@@ -368,7 +365,11 @@ function ReviewStatus({
   );
 }
 
+function sentenceCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 const styles = StyleSheet.create({
   group: { gap: 12 },
-  investigationTitle: { ...typography.title, textTransform: 'capitalize' }
+  investigationTitle: typography.title
 });

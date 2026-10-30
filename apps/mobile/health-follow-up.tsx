@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { HealthInvestigationSummary } from '@health-coach/health-core/iron-regulation-panel';
 import { ActionButton } from './action-button';
+import { formatDate, formatDateRange } from './format';
 import { createFollowUpDraft } from './health-follow-up-state';
 import { SectionHeading } from './section-heading';
 import { supabase } from './supabase-client';
@@ -88,7 +89,7 @@ export function HealthFollowUpSection({
       setCompletionSources(
         (labResults ?? []).map((result) => ({
           id: result.source_id,
-          label: `${result.test_name} recorded ${result.recorded_at.slice(0, 10)}`
+          label: `${result.test_name} recorded ${formatDate(result.recorded_at)}`
         }))
       );
     }
@@ -156,7 +157,7 @@ export function HealthFollowUpSection({
 
   return (
     <View style={styles.section}>
-      <SectionHeading title="Health Follow-up" />
+      <SectionHeading title="Follow-up" />
       {currentFollowUp ? (
         <FollowUpCard
           completionNote={completionNote}
@@ -195,9 +196,7 @@ export function HealthFollowUpSection({
         <View style={styles.card}>
           <Text style={styles.purpose}>{draft.purpose}</Text>
           <Text style={typography.note}>{draft.rationale}</Text>
-          <Text style={styles.due}>
-            Due {formatDate(draft.dueStart)}–{formatDate(draft.dueEnd)}
-          </Text>
+          <Text style={styles.due}>Due {formatDateRange(draft.dueStart, draft.dueEnd)}</Text>
           <ActionButton disabled={isSaving} label="Create Health Follow-up" onPress={() => void createFollowUp()} />
         </View>
       ) : (
@@ -245,7 +244,7 @@ function FollowUpCard({
       <Text style={styles.purpose}>{followUp.purpose}</Text>
       <Text style={typography.note}>{followUp.rationale}</Text>
       <Text style={styles.due}>
-        Due {formatDate(followUp.dueStart)}–{formatDate(followUp.dueEnd)} · {followUp.state}
+        Due {formatDateRange(followUp.dueStart, followUp.dueEnd)} · {followUp.state}
       </Text>
       {isOpen ? (
         <>
@@ -310,10 +309,6 @@ function addDays(value: string, days: number): string {
   const date = new Date(value);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString();
-}
-
-function formatDate(value: string): string {
-  return value.slice(0, 10);
 }
 
 const styles = StyleSheet.create({

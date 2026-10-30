@@ -4,16 +4,28 @@ import type { Root, TestInstance } from 'test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { dateInZone, shiftDate } from '@health-coach/health-core/wearable-review';
 
-const mocks = vi.hoisted(() => ({ read: vi.fn(), session: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  read: vi.fn(),
+  session: vi.fn(),
+  fetch: vi.fn(),
+  openSettings: vi.fn(),
+  PermissionError: class extends Error {}
+}));
 vi.mock('react-native', () => ({
+  AppState: { addEventListener: () => ({ remove: () => undefined }) },
   Pressable: 'Pressable',
+  RefreshControl: 'RefreshControl',
   ScrollView: 'ScrollView',
   StyleSheet: { create: <T,>(styles: T) => styles },
   Text: 'Text',
   TextInput: 'TextInput',
   View: 'View'
 }));
-vi.mock('./read-wearable-snapshot', () => ({ readWearableSnapshot: mocks.read }));
+vi.mock('./read-wearable-snapshot', () => ({
+  HealthConnectPermissionError: mocks.PermissionError,
+  openHealthConnectSettings: mocks.openSettings,
+  readWearableSnapshot: mocks.read
+}));
 vi.mock('./supabase-client', () => ({ supabase: { auth: { getSession: mocks.session } } }));
 import { DailyGuidanceScreen } from './daily-guidance-screen';
 
@@ -68,19 +80,19 @@ it('shows a rejected explanation beside its action and leaves the calculated evi
   await act(async () => {
     root.render(<DailyGuidanceScreen />);
   });
-  await press('Read wearable data');
-  await press('Explain these changes with AI');
+  await press('Explain with AI');
   const labels = root.container
     .queryAll((node) => (node.type === 'Text' && node.parent?.type !== 'Pressable') || buttonLabel(node) !== null)
     .map(text);
-  const action = labels.indexOf('Explain these changes with AI');
+  const action = labels.indexOf('Explain with AI');
   expect(action).toBeGreaterThan(-1);
   expect(labels.slice(action - 1, action + 2)).toContain(error);
   expect(root.container.queryAll((node) => node.props.role === 'alert').map(text)).toEqual([error]);
   const headers = root.container.queryAll((node) => node.props.accessibilityRole === 'header').map(text);
-  expect(headers).toContain('No display threshold crossed in the comparable signals.');
+  expect(headers).toContain('Your last 3 days look typical.');
   expect(headers).toContain('Steps');
-  expect(labels.some((label) => label.startsWith('5000 → 5000 steps/day average'))).toBe(true);
+  expect(labels).toContain('5,000 → 5,000 a day');
+  expect(mocks.read).toHaveBeenCalledOnce();
   expect(mocks.fetch).toHaveBeenCalledOnce();
 });
 
@@ -100,11 +112,21 @@ it('keeps coverage detail one step away behind the sources disclosure', async ()
   await act(async () => {
     root.render(<DailyGuidanceScreen />);
   });
-  await press('Read wearable data');
-  const coverage = () => root.container.queryAll((node) => node.type === 'Text' && text(node).startsWith('Steps: '));
+  const coverage = () => root.container.queryAll((node) => node.type === 'Text' && text(node).startsWith('Steps · '));
   expect(coverage()).toHaveLength(0);
   await press('Sources →');
-  expect(coverage().map(text)[0]).toContain('Sources: example.source');
+  expect(coverage().map(text)[0]).toBe('Steps · 21 of 21 days · example.source');
   await press('Hide sources');
   expect(coverage()).toHaveLength(0);
+});
+
+it('reads automatically and offers Health Connect when access is off', async () => {
+  mocks.read.mockRejectedValue(new mocks.PermissionError('Steps and sleep access is off.'));
+  await act(async () => {
+    root.render(<DailyGuidanceScreen />);
+  });
+  const headers = root.container.queryAll((node) => node.props.accessibilityRole === 'header').map(text);
+  expect(headers).toContain('Steps and sleep access is off.');
+  await press('Open Health Connect');
+  expect(mocks.openSettings).toHaveBeenCalledOnce();
 });

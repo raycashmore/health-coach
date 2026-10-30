@@ -32,7 +32,14 @@ export function TopBar({ onSignOut }: { onSignOut?: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  bar: { paddingHorizontal: spacing.margin, paddingTop: 16 },
+  bar: {
+    backgroundColor: colors.background,
+    borderBottomColor: colors.rule,
+    borderBottomWidth: 1,
+    paddingBottom: 12,
+    paddingHorizontal: spacing.margin,
+    paddingTop: 16
+  },
   menu: { color: colors.ink, fontFamily: fonts.regular, fontSize: 18 },
   menuItem: { alignItems: 'flex-end', paddingVertical: 12 },
   name: { ...typography.label, letterSpacing: 1 },

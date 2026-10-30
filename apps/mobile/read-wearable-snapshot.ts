@@ -2,6 +2,18 @@ import { Platform } from 'react-native';
 import type { WearableSnapshot } from '@health-coach/health-core/wearable-review';
 import { dateInZone } from '@health-coach/health-core/wearable-review';
 
+const readPermissions = [
+  { accessType: 'read', recordType: 'Steps' },
+  { accessType: 'read', recordType: 'SleepSession' }
+] as const;
+
+export class HealthConnectPermissionError extends Error {}
+
+export async function openHealthConnectSettings(): Promise<void> {
+  const health = await import('react-native-health-connect');
+  health.openHealthConnectSettings();
+}
+
 export async function readWearableSnapshot(): Promise<WearableSnapshot> {
   if (Platform.OS !== 'android') throw new Error('Health Connect needs an Android device.');
   let health: typeof import('react-native-health-connect');
@@ -13,14 +25,16 @@ export async function readWearableSnapshot(): Promise<WearableSnapshot> {
   if (!(await health.initialize())) {
     throw new Error('Health Connect is unavailable. Install or update it, then try again.');
   }
-  const permissions = await health.requestPermission([
-    { accessType: 'read', recordType: 'Steps' },
-    { accessType: 'read', recordType: 'SleepSession' }
-  ]);
+  const granted = await health.getGrantedPermissions();
+  const hasAll = readPermissions.every((wanted) =>
+    granted.some((permission) => permission.accessType === 'read' && permission.recordType === wanted.recordType)
+  );
+  // Only prompt when something is missing so automatic reads stay silent once access is granted.
+  const permissions = hasAll ? granted : await health.requestPermission([...readPermissions]);
   const canRead = (recordType: 'Steps' | 'SleepSession') =>
     permissions.some((permission) => permission.accessType === 'read' && permission.recordType === recordType);
   if (!canRead('Steps') && !canRead('SleepSession')) {
-    throw new Error('No read permissions granted. Allow steps or sleep in Health Connect, then try again.');
+    throw new HealthConnectPermissionError('Steps and sleep access is off.');
   }
   const now = new Date();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;

@@ -1,38 +1,42 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { buildWearableReview, validateWearableExplanation } from '@health-coach/health-core/wearable-review';
-import type {
-  WearableExplanation,
-  WearableReviewInput,
-  WearableSnapshot
-} from '@health-coach/health-core/wearable-review';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { validateWearableExplanation } from '@health-coach/health-core/wearable-review';
+import type { WearableExplanation, WearableReviewInput } from '@health-coach/health-core/wearable-review';
 import { ActionButton } from './action-button';
 import { BaselineComparison } from './baseline-comparison';
-import { readWearableSnapshot } from './read-wearable-snapshot';
+import { formatDate, formatTime } from './format';
+import { openHealthConnectSettings } from './read-wearable-snapshot';
 import { ReviewSources } from './review-sources';
 import { supabase } from './supabase-client';
 import { RatingButtons } from './rating-buttons';
 import type { RatingJudgement } from './rating-buttons';
 import { ScreenLead } from './screen-lead';
 import { SectionHeading } from './section-heading';
-import { colors, field, layout, rule, typography } from './theme';
+import { colors, field, fonts, layout, rule, typography } from './theme';
+import { useWearableReview } from './use-wearable-review';
+import { metricLabels } from './wearable-labels';
 
-type Review = { snapshot: WearableSnapshot; analysis: WearableReviewInput };
-type Explanation = { reviewId: string; content: WearableExplanation; question: string };
+type Explanation = { completedBefore: string; reviewId: string; content: WearableExplanation; question: string };
 
 const headlines = {
-  'insufficient-data': 'Not enough recorded days for a comparison yet.',
-  change: 'A recorded difference is available to explore.',
-  'no-change': 'No display threshold crossed in the comparable signals.'
+  'insufficient-data': 'Not enough data yet.',
+  change: 'Your last 3 days look different.',
+  'no-change': 'Your last 3 days look typical.'
 } satisfies Record<WearableReviewInput['status'], string>;
 
+function coverageGap(item: WearableReviewInput['coverage'][number]): string {
+  return item.recentDays < 3
+    ? `${metricLabels[item.metric]}: ${item.recentDays} of the last 3 days recorded.`
+    : `${metricLabels[item.metric]}: ${item.baselineDays} of the previous 18 days recorded; 7 needed.`;
+}
+
 export function DailyGuidanceScreen() {
-  const [review, setReview] = useState<Review | null>(null);
+  const { failure, reading, refresh, review } = useWearableReview();
   const [explanation, setExplanation] = useState<Explanation | null>(null);
-  const [busy, setBusy] = useState<'reading' | 'explaining' | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [feedbackLocation, setFeedbackLocation] = useState<'read' | 'explain' | 'rating'>('read');
+  const [feedbackLocation, setFeedbackLocation] = useState<'explain' | 'rating'>('explain');
   const [question, setQuestion] = useState('');
   const feedback = (
     <>
@@ -49,23 +53,6 @@ export function DailyGuidanceScreen() {
     </>
   );
 
-  async function read() {
-    setFeedbackLocation('read');
-    setBusy('reading');
-    setError(null);
-    setMessage(null);
-    setReview(null);
-    setExplanation(null);
-    try {
-      const snapshot = await readWearableSnapshot();
-      setReview({ snapshot, analysis: buildWearableReview(snapshot) });
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'The wearable read failed. Try again.');
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function explain() {
     if (!review || !supabase) return;
     setFeedbackLocation('explain');
@@ -80,7 +67,7 @@ export function DailyGuidanceScreen() {
       setError('The private review server must use HTTPS outside development.');
       return;
     }
-    setBusy('explaining');
+    setBusy(true);
     try {
       const session = await supabase.auth.getSession();
       if (!session.data.session) throw new Error('Sign in again before requesting an explanation.');
@@ -103,23 +90,18 @@ export function DailyGuidanceScreen() {
         typeof body.reviewId === 'string'
       ) {
         setExplanation({
+          completedBefore: review.snapshot.completedBefore,
           reviewId: body.reviewId,
           question,
           content: validateWearableExplanation(body.explanation, review.analysis)
         });
       } else {
-        setMessage(
-          'AI explanations are not enabled, or coverage is insufficient. Your calculated comparison is available below.'
-        );
+        setMessage('AI explanations aren’t available for this comparison.');
       }
     } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'The explanation failed. Your calculated comparison is still available.'
-      );
+      setError(error instanceof Error ? error.message : 'The explanation failed.');
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -128,7 +110,7 @@ export function DailyGuidanceScreen() {
     setFeedbackLocation('rating');
     setError(null);
     setMessage(null);
-    setBusy('explaining');
+    setBusy(true);
     try {
       const result = await supabase
         .from('wearable_reviews')
@@ -138,97 +120,107 @@ export function DailyGuidanceScreen() {
     } catch {
       setError('Your rating could not be saved.');
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
+  const evidence = review?.analysis.evidence ?? [];
+  const recent = evidence[0];
+  const shownExplanation = explanation?.completedBefore === review?.snapshot.completedBefore ? explanation : null;
+  const headline = review
+    ? headlines[review.analysis.status]
+    : failure
+      ? failure.needsPermission
+        ? failure.message
+        : 'Couldn’t read your data.'
+      : 'Reading your last few days…';
+
   return (
-    <ScrollView contentContainerStyle={layout.screen} keyboardShouldPersistTaps="handled">
-      <ScreenLead
-        context={
-          review
-            ? `Your recent patterns · ${review.snapshot.days[0]?.date} to ${review.snapshot.days.at(-1)?.date}`
-            : 'Your recent patterns'
-        }
-        headline={review ? headlines[review.analysis.status] : 'How have your last few days compared?'}
-      >
-        <Text style={typography.body}>
-          Compare the last 3 completed days with your preceding record. Read steps and sleep shared with Health Connect
-          by your existing wearable apps.
-        </Text>
-        <Text style={typography.note}>
-          Read-only access. No background monitoring. The local comparison stays on your phone until you request an
-          explanation.
-        </Text>
-      </ScreenLead>
-      <View style={styles.group}>
-        <ActionButton
-          label={busy === 'reading' ? 'Reading completed days…' : 'Read wearable data'}
-          disabled={busy !== null}
-          onPress={() => void read()}
-          variant={review ? 'secondary' : 'primary'}
+    <ScrollView
+      contentContainerStyle={layout.screen}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          colors={[colors.ink]}
+          onRefresh={() => void refresh()}
+          refreshing={reading && review !== null}
         />
-        {feedbackLocation === 'read' ? feedback : null}
-      </View>
-      {review ? (
+      }
+    >
+      <ScreenLead
+        context={recent ? `Last 3 days · ${formatDate(recent.endDate)}` : 'Last 3 days'}
+        headline={headline}
+      />
+      {failure && !review ? (
         <View style={styles.group}>
-          {review.analysis.evidence.length ? <BaselineComparison evidence={review.analysis.evidence} /> : null}
-          {review.analysis.limitations.map((item) => (
-            <Text key={item} style={typography.note}>
-              {item}
-            </Text>
-          ))}
-          <Text style={typography.note}>
-            Changes in contributing apps can affect the totals; a recorded difference does not prove a change in your
-            activity or sleep.
-          </Text>
-          <ReviewSources coverage={review.analysis.coverage} snapshot={review.snapshot} />
+          {failure.needsPermission ? null : <Text style={typography.note}>{failure.message}</Text>}
+          {failure.needsPermission ? (
+            <ActionButton label="Open Health Connect" onPress={() => void openHealthConnectSettings()} />
+          ) : null}
+          <ActionButton label="Try again" onPress={() => void refresh()} variant="secondary" />
         </View>
       ) : null}
-      {review?.analysis.evidence.length ? (
+      {review ? (
+        <View style={styles.group}>
+          {evidence.length ? <BaselineComparison evidence={evidence} /> : null}
+          {review.analysis.coverage
+            .filter((item) => !item.comparable)
+            .map((item) => (
+              <Text key={item.metric} style={typography.note}>
+                {coverageGap(item)}
+              </Text>
+            ))}
+          {failure ? (
+            <View style={styles.inline}>
+              <Text role="alert" style={typography.alert}>
+                Couldn’t update.
+              </Text>
+              <Pressable accessibilityRole="button" hitSlop={12} onPress={() => void refresh()}>
+                <Text style={styles.link}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          <ReviewSources
+            coverage={review.analysis.coverage}
+            status={reading ? 'Updating…' : `Updated ${formatTime(new Date(review.snapshot.syncedAt))}`}
+          />
+        </View>
+      ) : null}
+      {evidence.length ? (
         <View style={styles.group}>
           <View style={rule.light} />
-          <Text style={typography.meta}>
-            Requesting an explanation sends these 21 days of derived totals to your private server. The configured model
-            receives the calculated comparisons and coverage. A private snapshot is retained for evaluation.
-          </Text>
           <TextInput
             accessibilityLabel="Question about these wearable patterns"
-            placeholder="Ask about this comparison (optional)"
+            placeholder="Ask a question (optional)"
             placeholderTextColor={colors.secondary}
             multiline
             maxLength={500}
             value={question}
             onChangeText={setQuestion}
-            editable={busy === null}
+            editable={!busy}
             style={field.input}
           />
-          <Text style={typography.meta}>
-            Questions use only the comparisons shown here; other health records are not retrieved.
-          </Text>
+          <Text style={typography.meta}>Sends 21 days of step and sleep totals to your server. A copy is kept.</Text>
           <ActionButton
-            label={busy === 'explaining' ? 'Working…' : 'Explain these changes with AI'}
-            disabled={busy !== null}
+            label={busy ? 'Working…' : 'Explain with AI'}
+            disabled={busy || reading}
             onPress={() => void explain()}
           />
           {feedbackLocation === 'explain' ? feedback : null}
         </View>
       ) : null}
-      {explanation ? (
+      {shownExplanation ? (
         <View style={styles.group}>
-          <SectionHeading title="AI interpretation · check against the evidence above" />
-          {explanation.question ? <Text style={typography.context}>Your question: {explanation.question}</Text> : null}
-          <Text style={typography.body}>{explanation.content.observation}</Text>
-          <Text style={typography.meta}>Evidence: {explanation.content.evidenceIds.join(', ')}</Text>
-          <Text style={typography.note}>{explanation.content.uncertainty}</Text>
+          <SectionHeading title="AI interpretation" />
+          {shownExplanation.question ? (
+            <Text style={typography.context}>Your question: {shownExplanation.question}</Text>
+          ) : null}
+          <Text style={typography.body}>{shownExplanation.content.observation}</Text>
+          <Text style={typography.note}>{shownExplanation.content.uncertainty}</Text>
           <View style={styles.prompt}>
-            <Text style={typography.prompt}>{explanation.content.contextQuestion}</Text>
-            <Text style={typography.meta}>
-              Add context using the question field above. It stays with this private review and does not change your
-              health record.
-            </Text>
+            <Text style={typography.prompt}>{shownExplanation.content.contextQuestion}</Text>
           </View>
-          <RatingButtons disabled={busy !== null} onRate={(judgement) => void rate(judgement)} />
+          <RatingButtons disabled={busy} onRate={(judgement) => void rate(judgement)} />
           {feedbackLocation === 'rating' ? feedback : null}
         </View>
       ) : null}
@@ -238,5 +230,7 @@ export function DailyGuidanceScreen() {
 
 const styles = StyleSheet.create({
   group: { gap: 16 },
+  inline: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  link: { color: colors.ink, fontFamily: fonts.semibold, fontSize: 14, textDecorationLine: 'underline' },
   prompt: { borderTopColor: colors.rule, borderTopWidth: 1, gap: 8, paddingTop: 16 }
 });

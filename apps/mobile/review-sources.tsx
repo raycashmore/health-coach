@@ -1,23 +1,15 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { WearableReviewInput, WearableSnapshot } from '@health-coach/health-core/wearable-review';
+import type { WearableReviewInput } from '@health-coach/health-core/wearable-review';
 import { colors, fonts, typography } from './theme';
-import { metricLabels } from './wearable-labels';
+import { metricLabels, sourceName } from './wearable-labels';
 
-export function ReviewSources({
-  coverage,
-  snapshot
-}: {
-  coverage: WearableReviewInput['coverage'];
-  snapshot: WearableSnapshot;
-}) {
+export function ReviewSources({ coverage, status }: { coverage: WearableReviewInput['coverage']; status: string }) {
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.section}>
       <View style={styles.row}>
-        <Text style={typography.meta}>
-          Read {snapshot.syncedAt} · {snapshot.timeZone}
-        </Text>
+        <Text style={typography.meta}>{status}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: open }}
@@ -31,18 +23,12 @@ export function ReviewSources({
         <View style={styles.details}>
           {coverage.map((item) => (
             <Text key={item.metric} style={typography.meta}>
-              {metricLabels[item.metric]}: {item.days}/21 days with records ·{' '}
-              {item.comparable ? 'enough recorded days to compare' : 'not enough recorded days'}
-              {' · '}
-              {item.recentDays}/3 recent days · {item.baselineDays}/18 baseline days (7 needed)
-              {item.originsChanged ? ' · contributing sources vary across days' : ''}
-              {' · Sources: '}
-              {item.origins.length ? item.origins.join(', ') : 'none available'}
+              {metricLabels[item.metric]} · {item.days} of 21 days
+              {item.origins.length ? ` · ${[...new Set(item.origins.map(sourceName))].join(', ')}` : ''}
+              {item.originsChanged ? ' · Sources changed' : ''}
             </Text>
           ))}
-          <Text style={typography.meta}>
-            Health Connect combines these totals using your app priorities to remove overlapping steps and sleep.
-          </Text>
+          <Text style={typography.meta}>Sleep is counted midnight to midnight.</Text>
         </View>
       ) : null}
     </View>
