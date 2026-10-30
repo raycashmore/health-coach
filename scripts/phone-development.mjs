@@ -135,9 +135,10 @@ export async function phoneDevelopment({ start, requestedDevice }) {
   }
 
   const children = [];
+  const helpers = [];
   let stopping = false;
   const stop = () => {
-    for (const child of children) {
+    for (const child of [...children, ...helpers]) {
       if (child.exitCode === null) {
         try {
           process.kill(process.platform === 'win32' ? child.pid : -child.pid, 'SIGTERM');
@@ -157,8 +158,9 @@ export async function phoneDevelopment({ start, requestedDevice }) {
     const directory = resolve(projectRoot, '.scratch/dev-phone');
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     chmodSync(directory, 0o700);
-    const launch = (name, args, env) => {
-      const descriptor = openSync(resolve(directory, `${name}.log`), 'a', 0o600);
+    // Auxiliary processes are stopped with the stack but never end it, and start each run with a fresh log.
+    const launch = (name, args, env, { auxiliary = false } = {}) => {
+      const descriptor = openSync(resolve(directory, `${name}.log`), auxiliary ? 'w' : 'a', 0o600);
       fchmodSync(descriptor, 0o600);
       const child = spawn(pnpm, args, {
         cwd: projectRoot,
@@ -167,6 +169,12 @@ export async function phoneDevelopment({ start, requestedDevice }) {
         detached: process.platform !== 'win32'
       });
       closeSync(descriptor);
+      if (auxiliary) {
+        // A helper that fails to spawn leaves the servers running; its log stays empty.
+        child.on('error', () => undefined);
+        helpers.push(child);
+        return;
+      }
       child.on('error', () => {
         stopping = true;
         stop();
@@ -174,6 +182,8 @@ export async function phoneDevelopment({ start, requestedDevice }) {
       });
       children.push(child);
     };
+    // CI disables Metro's file watching, so edits would never reach the phone; stdin is ignored, so Expo cannot prompt.
+    const { CI: _ci, ...environmentWithoutCi } = process.env;
     if (states.web === 'unexpected' || states.metro === 'unexpected')
       throw new Error('A required port is serving an unexpected application; it was left untouched.');
     if (states.web !== 'ready')
@@ -182,13 +192,20 @@ export async function phoneDevelopment({ start, requestedDevice }) {
         ...web,
         INNGEST_DEV: '1'
       });
-    if (states.metro !== 'ready')
+    if (states.metro !== 'ready') {
       launch('metro', ['--filter', '@health-coach/mobile', 'exec', 'expo', 'start', '--dev-client', '--localhost'], {
-        ...process.env,
+        ...environmentWithoutCi,
         ...readEnvironment(mobileEnvironmentPath),
-        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`,
-        CI: '1'
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`
       });
+    }
+    // Metro strips types without checking them, so a watching tsc reports mobile type errors on every run.
+    launch(
+      'typecheck',
+      ['--filter', '@health-coach/mobile', 'exec', 'tsc', '--noEmit', '--watch', '--preserveWatchOutput'],
+      environmentWithoutCi,
+      { auxiliary: true }
+    );
     await Promise.all([
       waitForService(
         'http://127.0.0.1:3000/api/wearable-review',
@@ -216,16 +233,17 @@ export async function phoneDevelopment({ start, requestedDevice }) {
     console.log(
       'Phone development is ready over localhost tunnels. Private logs: .scratch/dev-phone/. No model request was made.'
     );
-    if (children.length) {
-      await Promise.race(
-        children.map((child) =>
-          child.exitCode !== null || child.signalCode !== null
-            ? Promise.resolve()
-            : new Promise((resolve) => child.once('exit', resolve))
-        )
-      );
-      if (!stopping) throw new Error('A development server exited. Inspect the private .scratch/dev-phone logs.');
+    const exited = (child) =>
+      child.exitCode !== null || child.signalCode !== null
+        ? Promise.resolve()
+        : new Promise((resolve) => child.once('exit', resolve));
+    if (!children.length) {
+      // Every server was reused; stay up only so the type checker keeps watching until Ctrl-C.
+      await Promise.all(helpers.map(exited));
+      return;
     }
+    await Promise.race(children.map(exited));
+    if (!stopping) throw new Error('A development server exited. Inspect the private .scratch/dev-phone logs.');
   } finally {
     stop();
     process.removeListener('SIGINT', onSignal);

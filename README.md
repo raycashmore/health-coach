@@ -228,7 +228,8 @@ New Metro and web servers listen on loopback only; Metro prefers IPv4 so the for
 Existing reachable servers are reused; unrelated applications on the required ports are left untouched.
 
 Keep `dev:phone` running when it starts servers; Ctrl-C stops only those servers it started. Private server output goes
-to ignored `.scratch/dev-phone/web.log` and `metro.log`, rather than the chat or repository. Existing Metro instances
+to ignored `.scratch/dev-phone/web.log` and `metro.log`, rather than the chat or repository. Metro reloads the app as
+files change, but it does not check types, so a watching `tsc` writes mobile type errors to `typecheck.log` alongside. Existing Metro instances
 may require an app reload after environment changes. This remains a development flow requiring the computer and
 debugging connection, not a deployed daily-use app. The static `verify:local-dev` check validates task declarations;
 `doctor:phone` checks actual runtime readiness.
