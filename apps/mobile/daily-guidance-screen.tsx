@@ -226,7 +226,7 @@ export function DailyGuidanceScreen() {
             </View>
           ) : null}
           <ReviewSources
-            coverage={review.analysis.coverage}
+            coverage={review.analysis.coverage.filter((item) => !review.blocked.includes(item.metric))}
             status={reading ? 'Updating…' : `Updated ${formatTime(new Date(review.snapshot.syncedAt))}`}
           />
         </View>

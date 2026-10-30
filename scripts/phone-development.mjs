@@ -170,6 +170,8 @@ export async function phoneDevelopment({ start, requestedDevice }) {
       });
       closeSync(descriptor);
       if (auxiliary) {
+        // A helper that fails to spawn leaves the servers running; its log stays empty.
+        child.on('error', () => undefined);
         helpers.push(child);
         return;
       }
