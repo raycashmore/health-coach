@@ -1,16 +1,30 @@
 import { useState } from 'react';
-import { Button, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { buildWearableReview, validateWearableExplanation } from '@health-coach/health-core/wearable-review';
 import type {
   WearableExplanation,
   WearableReviewInput,
   WearableSnapshot
 } from '@health-coach/health-core/wearable-review';
+import { ActionButton } from './action-button';
+import { BaselineComparison } from './baseline-comparison';
 import { readWearableSnapshot } from './read-wearable-snapshot';
+import { ReviewSources } from './review-sources';
 import { supabase } from './supabase-client';
+import { RatingButtons } from './rating-buttons';
+import type { RatingJudgement } from './rating-buttons';
+import { ScreenLead } from './screen-lead';
+import { SectionHeading } from './section-heading';
+import { colors, field, layout, rule, typography } from './theme';
 
 type Review = { snapshot: WearableSnapshot; analysis: WearableReviewInput };
 type Explanation = { reviewId: string; content: WearableExplanation; question: string };
+
+const headlines = {
+  'insufficient-data': 'Not enough recorded days for a comparison yet.',
+  change: 'A recorded difference is available to explore.',
+  'no-change': 'No display threshold crossed in the comparable signals.'
+} satisfies Record<WearableReviewInput['status'], string>;
 
 export function DailyGuidanceScreen() {
   const [review, setReview] = useState<Review | null>(null);
@@ -22,8 +36,16 @@ export function DailyGuidanceScreen() {
   const [question, setQuestion] = useState('');
   const feedback = (
     <>
-      {error ? <Text role="alert">{error}</Text> : null}
-      {message ? <Text accessibilityLiveRegion="polite">{message}</Text> : null}
+      {error ? (
+        <Text role="alert" style={typography.alert}>
+          {error}
+        </Text>
+      ) : null}
+      {message ? (
+        <Text accessibilityLiveRegion="polite" style={typography.note}>
+          {message}
+        </Text>
+      ) : null}
     </>
   );
 
@@ -101,7 +123,7 @@ export function DailyGuidanceScreen() {
     }
   }
 
-  async function rate(judgement: 'useful' | 'not-useful' | 'concerning') {
+  async function rate(judgement: RatingJudgement) {
     if (!supabase || !explanation) return;
     setFeedbackLocation('rating');
     setError(null);
@@ -121,124 +143,100 @@ export function DailyGuidanceScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }}>
-      <Text accessibilityRole="header" style={{ fontSize: 28 }}>
-        Your recent patterns
-      </Text>
-      <Text>
-        Compare the last 3 completed days with your preceding record. Read steps and sleep shared with Health Connect by
-        your existing wearable apps.
-      </Text>
-      <Text>
-        Read-only access. No background monitoring. The local comparison stays on your phone until you request an
-        explanation.
-      </Text>
-      <Button
-        title={busy === 'reading' ? 'Reading completed days…' : 'Read wearable data'}
-        disabled={busy !== null}
-        onPress={() => void read()}
-      />
-      {feedbackLocation === 'read' ? feedback : null}
+    <ScrollView contentContainerStyle={layout.screen} keyboardShouldPersistTaps="handled">
+      <ScreenLead
+        context={
+          review
+            ? `Your recent patterns · ${review.snapshot.days[0]?.date} to ${review.snapshot.days.at(-1)?.date}`
+            : 'Your recent patterns'
+        }
+        headline={review ? headlines[review.analysis.status] : 'How have your last few days compared?'}
+      >
+        <Text style={typography.body}>
+          Compare the last 3 completed days with your preceding record. Read steps and sleep shared with Health Connect
+          by your existing wearable apps.
+        </Text>
+        <Text style={typography.note}>
+          Read-only access. No background monitoring. The local comparison stays on your phone until you request an
+          explanation.
+        </Text>
+      </ScreenLead>
+      <View style={styles.group}>
+        <ActionButton
+          label={busy === 'reading' ? 'Reading completed days…' : 'Read wearable data'}
+          disabled={busy !== null}
+          onPress={() => void read()}
+          variant={review ? 'secondary' : 'primary'}
+        />
+        {feedbackLocation === 'read' ? feedback : null}
+      </View>
       {review ? (
-        <>
-          <Text>
-            Read {review.snapshot.syncedAt} · {review.snapshot.timeZone}
-          </Text>
-          <Text>
-            {review.snapshot.days[0]?.date} to {review.snapshot.days.at(-1)?.date}
-          </Text>
-          <Text>
-            {review.analysis.status === 'insufficient-data'
-              ? 'Not enough recorded days for a comparison yet.'
-              : review.analysis.status === 'change'
-                ? 'A recorded difference is available to explore.'
-                : 'No display threshold crossed in the comparable signals.'}
-          </Text>
-          {review.analysis.coverage.map((item) => (
-            <Text key={item.metric}>
-              {item.metric === 'steps' ? 'Steps' : 'Recorded sleep'}: {item.days}/21 days with records ·{' '}
-              {item.comparable ? 'enough recorded days to compare' : 'not enough recorded days'}
-              {' · '}
-              {item.recentDays}/3 recent days · {item.baselineDays}/18 baseline days (7 needed)
-              {item.originsChanged ? ' · contributing sources vary across days' : ''}
-              {' · Sources: '}
-              {item.origins.length ? item.origins.join(', ') : 'none available'}
+        <View style={styles.group}>
+          {review.analysis.evidence.length ? <BaselineComparison evidence={review.analysis.evidence} /> : null}
+          {review.analysis.limitations.map((item) => (
+            <Text key={item} style={typography.note}>
+              {item}
             </Text>
           ))}
-          <Text>
-            Health Connect combines these totals using your app priorities to remove overlapping steps and sleep.
+          <Text style={typography.note}>
             Changes in contributing apps can affect the totals; a recorded difference does not prove a change in your
             activity or sleep.
           </Text>
-          {review.analysis.evidence.map((item) => (
-            <View key={item.id} style={{ padding: 16, backgroundColor: '#eeeeea', gap: 8 }}>
-              <Text accessibilityRole="header">{item.id === 'steps' ? 'Steps' : 'Recorded sleep'}</Text>
-              <Text>
-                Recent: {item.recentMean} {item.unit} over {item.recentDays} days ({item.recentStart}–{item.endDate})
-              </Text>
-              <Text>
-                Baseline: {item.baselineMean} {item.unit} over {item.baselineDays} days, starting {item.baselineStart}
-              </Text>
-              <Text>
-                Difference: {item.difference > 0 ? '+' : ''}
-                {item.difference} {item.unit}
-              </Text>
-              <Text>Sources: {item.origins.join(', ')}</Text>
-            </View>
-          ))}
-          {review.analysis.limitations.map((item) => (
-            <Text key={item}>{item}</Text>
-          ))}
-          {review.analysis.evidence.length ? (
-            <>
-              <Text>
-                Requesting an explanation sends these 21 days of derived totals to your private server. The configured
-                model receives the calculated comparisons and coverage. A private snapshot is retained for evaluation.
-              </Text>
-              <TextInput
-                accessibilityLabel="Question about these wearable patterns"
-                placeholder="Ask about this comparison (optional)"
-                multiline
-                maxLength={500}
-                value={question}
-                onChangeText={setQuestion}
-                editable={busy === null}
-                style={{ borderWidth: 1, borderColor: '#888888', padding: 12 }}
-              />
-              <Text>Questions use only the comparisons shown here; other health records are not retrieved.</Text>
-              <Button
-                title={busy === 'explaining' ? 'Working…' : 'Explain these changes with AI'}
-                disabled={busy !== null}
-                onPress={() => void explain()}
-              />
-              {feedbackLocation === 'explain' ? feedback : null}
-            </>
-          ) : null}
-        </>
+          <ReviewSources coverage={review.analysis.coverage} snapshot={review.snapshot} />
+        </View>
+      ) : null}
+      {review?.analysis.evidence.length ? (
+        <View style={styles.group}>
+          <View style={rule.light} />
+          <Text style={typography.meta}>
+            Requesting an explanation sends these 21 days of derived totals to your private server. The configured model
+            receives the calculated comparisons and coverage. A private snapshot is retained for evaluation.
+          </Text>
+          <TextInput
+            accessibilityLabel="Question about these wearable patterns"
+            placeholder="Ask about this comparison (optional)"
+            placeholderTextColor={colors.secondary}
+            multiline
+            maxLength={500}
+            value={question}
+            onChangeText={setQuestion}
+            editable={busy === null}
+            style={field.input}
+          />
+          <Text style={typography.meta}>
+            Questions use only the comparisons shown here; other health records are not retrieved.
+          </Text>
+          <ActionButton
+            label={busy === 'explaining' ? 'Working…' : 'Explain these changes with AI'}
+            disabled={busy !== null}
+            onPress={() => void explain()}
+          />
+          {feedbackLocation === 'explain' ? feedback : null}
+        </View>
       ) : null}
       {explanation ? (
-        <View style={{ gap: 12 }}>
-          <Text accessibilityRole="header">AI interpretation · check against the evidence above</Text>
-          {explanation.question ? <Text>Your question: {explanation.question}</Text> : null}
-          <Text>{explanation.content.observation}</Text>
-          <Text>Evidence: {explanation.content.evidenceIds.join(', ')}</Text>
-          <Text>{explanation.content.uncertainty}</Text>
-          <Text>{explanation.content.contextQuestion}</Text>
-          <Text>
-            Add context using the question field above. It stays with this private review and does not change your
-            health record.
-          </Text>
-          {(['useful', 'not-useful', 'concerning'] as const).map((option) => (
-            <Button
-              key={option}
-              title={option.replace('-', ' ')}
-              disabled={busy !== null}
-              onPress={() => void rate(option)}
-            />
-          ))}
+        <View style={styles.group}>
+          <SectionHeading title="AI interpretation · check against the evidence above" />
+          {explanation.question ? <Text style={typography.context}>Your question: {explanation.question}</Text> : null}
+          <Text style={typography.body}>{explanation.content.observation}</Text>
+          <Text style={typography.meta}>Evidence: {explanation.content.evidenceIds.join(', ')}</Text>
+          <Text style={typography.note}>{explanation.content.uncertainty}</Text>
+          <View style={styles.prompt}>
+            <Text style={typography.prompt}>{explanation.content.contextQuestion}</Text>
+            <Text style={typography.meta}>
+              Add context using the question field above. It stays with this private review and does not change your
+              health record.
+            </Text>
+          </View>
+          <RatingButtons disabled={busy !== null} onRate={(judgement) => void rate(judgement)} />
           {feedbackLocation === 'rating' ? feedback : null}
         </View>
       ) : null}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  group: { gap: 16 },
+  prompt: { borderTopColor: colors.rule, borderTopWidth: 1, gap: 8, paddingTop: 16 }
+});

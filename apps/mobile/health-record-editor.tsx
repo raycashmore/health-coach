@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { SourceMetadata } from '@health-coach/health-core';
 import {
   buildBloodPressureReading,
@@ -7,8 +7,11 @@ import {
   type BloodPressureDraft,
   type SupplementRegimenDraft
 } from './health-record-entry';
+import { ActionButton } from './action-button';
 import { removeById, upsertById } from './health-record-editor-state';
+import { SectionHeading } from './section-heading';
 import { supabase } from './supabase-client';
+import { colors, field, typography } from './theme';
 
 type BloodPressureReading = {
   diastolicMmhg: number;
@@ -264,11 +267,13 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>Your entries</Text>
-      <Text style={styles.description}>
+      <SectionHeading title="Your entries" />
+      <Text style={typography.note}>
         Owner-entered readings and regimens stay source-backed in your private record.
       </Text>
-      <Text style={styles.subheading}>Blood pressure</Text>
+      <Text accessibilityRole="header" style={styles.subheading}>
+        Blood pressure
+      </Text>
       <Field
         label="Date (YYYY-MM-DD)"
         value={bloodPressureDraft.date}
@@ -299,7 +304,9 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
           {reading.pulseBpm ? ` · pulse ${reading.pulseBpm}` : ''}
         </Text>
       ))}
-      <Text style={styles.subheading}>Active Supplement Regimens</Text>
+      <Text accessibilityRole="header" style={styles.subheading}>
+        Active Supplement Regimens
+      </Text>
       <Field
         label="Ingredient"
         value={supplementDraft.ingredient}
@@ -335,16 +342,21 @@ export function HealthRecordEditor({ ownerId }: { ownerId: string }) {
           <Text style={styles.item}>
             {regimen.ingredient} · {regimen.dose} {regimen.form} · {regimen.frequency}
           </Text>
-          <Text style={styles.detail}>Active since {regimen.activeFrom.slice(0, 10)}</Text>
+          <Text style={typography.meta}>Active since {regimen.activeFrom.slice(0, 10)}</Text>
           <View style={styles.row}>
-            <ActionButton disabled={isSaving} label="Edit" onPress={() => editRegimen(regimen)} secondary />
-            <ActionButton disabled={isSaving} label="End regimen" onPress={() => endRegimen(regimen.id)} secondary />
+            <ActionButton disabled={isSaving} label="Edit" onPress={() => editRegimen(regimen)} variant="secondary" />
+            <ActionButton
+              disabled={isSaving}
+              label="End regimen"
+              onPress={() => endRegimen(regimen.id)}
+              variant="secondary"
+            />
           </View>
         </View>
       ))}
-      {isSaving ? <ActivityIndicator color="#39734f" style={styles.indicator} /> : null}
+      {isSaving ? <ActivityIndicator color={colors.ink} style={styles.indicator} /> : null}
       {error ? (
-        <Text role="alert" style={styles.error}>
+        <Text role="alert" style={typography.alert}>
           {error}
         </Text>
       ) : null}
@@ -369,57 +381,18 @@ function Field({
       keyboardType={keyboardType}
       onChangeText={onChangeText}
       placeholder={label}
-      style={styles.input}
+      placeholderTextColor={colors.secondary}
+      style={field.input}
       value={value}
     />
   );
 }
 
-function ActionButton({
-  disabled,
-  label,
-  onPress,
-  secondary = false
-}: {
-  disabled: boolean;
-  label: string;
-  onPress: () => void;
-  secondary?: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={secondary ? styles.secondaryButton : styles.button}
-    >
-      <Text style={secondary ? styles.secondaryButtonText : styles.buttonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  button: { alignItems: 'center', backgroundColor: '#39734f', borderRadius: 8, marginTop: 12, padding: 12 },
-  buttonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  description: { color: '#55555a', fontSize: 15, lineHeight: 22, marginTop: 6 },
-  detail: { color: '#55555a', fontSize: 14, marginTop: 4 },
-  error: { color: '#9d1c1c', fontSize: 15, marginTop: 12 },
-  heading: { color: '#1d1d20', fontSize: 22, fontWeight: '700' },
   indicator: { marginTop: 12 },
-  input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#b4b4b4',
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 16,
-    marginTop: 10,
-    padding: 12
-  },
-  item: { color: '#1d1d20', fontSize: 15, lineHeight: 22, marginTop: 12 },
-  regimen: { borderTopColor: '#d6d6d1', borderTopWidth: 1, marginTop: 12, paddingTop: 2 },
+  item: { ...typography.signal, lineHeight: 20 },
+  regimen: { borderTopColor: colors.rule, borderTopWidth: 1, gap: 8, paddingTop: 12 },
   row: { flexDirection: 'row', gap: 8 },
-  secondaryButton: { borderColor: '#39734f', borderRadius: 8, borderWidth: 1, flex: 1, marginTop: 10, padding: 10 },
-  secondaryButtonText: { color: '#39734f', fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  section: { marginTop: 32 },
-  subheading: { color: '#1d1d20', fontSize: 18, fontWeight: '700', marginTop: 24 }
+  section: { gap: 12 },
+  subheading: { ...typography.title, fontSize: 18, marginTop: 16 }
 });

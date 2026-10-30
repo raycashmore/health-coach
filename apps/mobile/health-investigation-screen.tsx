@@ -3,18 +3,25 @@ import {
   type HealthInvestigationSummary
 } from '@health-coach/health-core/iron-regulation-panel';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActionButton } from './action-button';
 import { beginRefresh, failRefresh } from './health-investigation-refresh-state';
 import { HealthRecordEditor } from './health-record-editor';
 import { HealthFollowUpSection } from './health-follow-up';
 import { supabase } from './supabase-client';
+import { RatingButtons } from './rating-buttons';
+import type { RatingJudgement } from './rating-buttons';
+import { ScreenLead } from './screen-lead';
+import { SectionHeading } from './section-heading';
+import { colors, layout, typography } from './theme';
 
 type ScreenState =
   | { kind: 'loading' }
   | {
       kind: 'ready';
       evidenceSources: EvidenceSource[];
-      feedbackJudgement: FeedbackJudgement | null;
+      feedbackJudgement: RatingJudgement | null;
       investigation: HealthInvestigationSummary | null;
       isRefreshing: boolean;
       ownerId: string;
@@ -30,8 +37,6 @@ type EvidenceSource = {
   provider: string;
   verificationState: string;
 };
-
-type FeedbackJudgement = 'useful' | 'not-useful' | 'concerning';
 
 export function HealthInvestigationScreen({ ownerId }: { ownerId: string }) {
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
@@ -165,12 +170,14 @@ export function HealthInvestigationScreen({ ownerId }: { ownerId: string }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={layout.screen}>
       {state.kind === 'error' ? (
         <>
-          <Text role="alert">{state.message}</Text>
-          <Button
-            title="Retry loading investigation"
+          <Text role="alert" style={typography.alert}>
+            {state.message}
+          </Text>
+          <ActionButton
+            label="Retry loading investigation"
             onPress={() => {
               setState({ kind: 'loading' });
               void loadReview(ownerId);
@@ -178,7 +185,7 @@ export function HealthInvestigationScreen({ ownerId }: { ownerId: string }) {
           />
         </>
       ) : (
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.ink} />
       )}
     </ScrollView>
   );
@@ -196,7 +203,7 @@ function InvestigationResult({
   sourceCount
 }: {
   evidenceSources: EvidenceSource[];
-  feedbackJudgement: FeedbackJudgement | null;
+  feedbackJudgement: RatingJudgement | null;
   investigation: HealthInvestigationSummary | null;
   isRefreshing: boolean;
   onRefresh: () => Promise<void>;
@@ -215,15 +222,11 @@ function InvestigationResult({
 
   if (!investigation) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>HEALTH REVIEW</Text>
-        <Text style={styles.title}>Your private record is ready.</Text>
-        <View style={styles.reviewCard}>
-          <Text style={styles.cardTitle}>Review status</Text>
-          <Text style={styles.cardBody}>{sourceStatus}</Text>
-          {workStatus ? <Text style={styles.cardBody}>{workStatus}</Text> : null}
-          <Text style={styles.cardBody}>No Health Investigation has been surfaced yet.</Text>
-        </View>
+      <ScrollView contentContainerStyle={layout.screen}>
+        <ScreenLead context="Health Review" headline="Your private record is ready." />
+        <ReviewStatus sourceStatus={sourceStatus} workStatus={workStatus}>
+          <Text style={typography.note}>No Health Investigation has been surfaced yet.</Text>
+        </ReviewStatus>
         <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
         <HealthRecordEditor key={ownerId} ownerId={ownerId} />
       </ScrollView>
@@ -231,31 +234,30 @@ function InvestigationResult({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>HEALTH REVIEW</Text>
-      <Text style={styles.title}>Your latest investigation</Text>
-      <View style={styles.reviewCard}>
-        <Text style={styles.cardTitle}>Review status</Text>
-        <Text style={styles.cardBody}>{sourceStatus}</Text>
-        {workStatus ? <Text style={styles.cardBody}>{workStatus}</Text> : null}
-      </View>
+    <ScrollView contentContainerStyle={layout.screen}>
+      <ScreenLead context="Health Review" headline="Your latest investigation" />
+      <ReviewStatus sourceStatus={sourceStatus} workStatus={workStatus} />
       <ReviewRefreshControls isRefreshing={isRefreshing} onRefresh={onRefresh} refreshError={refreshError} />
       <HealthRecordEditor key={ownerId} ownerId={ownerId} />
-      <Text style={styles.investigationTitle}>{investigation.resultType.replaceAll('-', ' ')}</Text>
-      <Text style={styles.body}>{investigation.summary}</Text>
-      <View style={styles.provenanceCard}>
-        <Text style={styles.cardTitle}>Why this was surfaced</Text>
-        <Text style={styles.cardBody}>
+      <View style={styles.group}>
+        <Text accessibilityRole="header" style={styles.investigationTitle}>
+          {investigation.resultType.replaceAll('-', ' ')}
+        </Text>
+        <Text style={typography.body}>{investigation.summary}</Text>
+      </View>
+      <View style={styles.group}>
+        <SectionHeading title="Why this was surfaced" />
+        <Text style={typography.note}>
           {investigation.panelId.replaceAll('-', ' ')} panel v{investigation.panelVersion} reviewed{' '}
           {investigation.personalEvidenceCount} private{' '}
           {investigation.personalEvidenceCount === 1 ? 'record' : 'records'}.
         </Text>
         {evidenceSources.map((source) => (
-          <Text key={source.id} style={styles.cardBody}>
+          <Text key={source.id} style={typography.meta}>
             Source: {source.provider}, {source.verificationState}, imported {source.importedAt.slice(0, 10)}.
           </Text>
         ))}
-        <Text style={styles.cardBody}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
+        <Text style={typography.meta}>Clinical references: {investigation.citationReferences.join('; ')}</Text>
       </View>
       <HealthFollowUpSection key={`follow-ups-${investigation.id}`} investigation={investigation} ownerId={ownerId} />
       <HealthInvestigationFeedback
@@ -264,7 +266,7 @@ function InvestigationResult({
         investigationId={investigation.id}
         ownerId={ownerId}
       />
-      <Text style={styles.status}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
+      <Text style={typography.meta}>Reviewed {investigation.createdAt.slice(0, 10)}</Text>
     </ScrollView>
   );
 }
@@ -274,15 +276,15 @@ function HealthInvestigationFeedback({
   investigationId,
   ownerId
 }: {
-  initialJudgement: FeedbackJudgement | null;
+  initialJudgement: RatingJudgement | null;
   investigationId: string;
   ownerId: string;
 }) {
-  const [judgement, setJudgement] = useState<FeedbackJudgement | null>(initialJudgement);
+  const [judgement, setJudgement] = useState<RatingJudgement | null>(initialJudgement);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  async function saveJudgement(nextJudgement: FeedbackJudgement): Promise<void> {
+  async function saveJudgement(nextJudgement: RatingJudgement): Promise<void> {
     if (!supabase || isSaving) {
       return;
     }
@@ -306,26 +308,14 @@ function HealthInvestigationFeedback({
   }
 
   return (
-    <View style={styles.feedbackCard}>
-      <Text style={styles.cardTitle}>Was this review useful?</Text>
-      <Text style={styles.cardBody}>
+    <View style={styles.group}>
+      <SectionHeading title="Was this review useful?" />
+      <Text style={typography.note}>
         Your private rating helps assess the Health Review. It does not change care advice.
       </Text>
-      <View style={styles.feedbackButtons}>
-        {(['useful', 'not-useful', 'concerning'] as const).map((option) => (
-          <Pressable
-            accessibilityRole="button"
-            disabled={isSaving}
-            key={option}
-            onPress={() => saveJudgement(option)}
-            style={[styles.feedbackButton, judgement === option ? styles.feedbackButtonSelected : null]}
-          >
-            <Text style={styles.feedbackButtonText}>{option.replace('-', ' ')}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <RatingButtons disabled={isSaving} onRate={(option) => void saveJudgement(option)} selected={judgement} />
       {saveError ? (
-        <Text role="alert" style={styles.error}>
+        <Text role="alert" style={typography.alert}>
           {saveError}
         </Text>
       ) : null}
@@ -343,58 +333,42 @@ function ReviewRefreshControls({
   refreshError: string | null;
 }) {
   return (
-    <>
-      <Pressable accessibilityRole="button" disabled={isRefreshing} onPress={onRefresh} style={styles.refreshButton}>
-        {isRefreshing ? (
-          <ActivityIndicator color="#39734f" />
-        ) : (
-          <Text style={styles.refreshButtonText}>Refresh review</Text>
-        )}
-      </Pressable>
+    <View style={styles.group}>
+      <ActionButton
+        disabled={isRefreshing}
+        label={isRefreshing ? 'Refreshing review…' : 'Refresh review'}
+        onPress={() => void onRefresh()}
+        variant="secondary"
+      />
       {refreshError ? (
-        <Text role="alert" style={styles.error}>
+        <Text role="alert" style={typography.alert}>
           {refreshError}
         </Text>
       ) : null}
-    </>
+    </View>
+  );
+}
+
+function ReviewStatus({
+  children,
+  sourceStatus,
+  workStatus
+}: {
+  children?: ReactNode;
+  sourceStatus: string;
+  workStatus: string | null;
+}) {
+  return (
+    <View style={styles.group}>
+      <SectionHeading title="Review status" />
+      <Text style={typography.note}>{sourceStatus}</Text>
+      {workStatus ? <Text style={typography.note}>{workStatus}</Text> : null}
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { color: '#55555a', fontSize: 17, lineHeight: 26, marginTop: 16 },
-  button: { alignItems: 'center', backgroundColor: '#39734f', borderRadius: 8, marginTop: 20, padding: 14 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  cardBody: { color: '#55555a', fontSize: 16, lineHeight: 24, marginTop: 8 },
-  cardTitle: { color: '#1d1d20', fontSize: 16, fontWeight: '700' },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 28 },
-  eyebrow: { color: '#39734f', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
-  error: { color: '#9d1c1c', fontSize: 15, marginTop: 12 },
-  feedbackButton: { borderColor: '#39734f', borderRadius: 8, borderWidth: 1, padding: 10 },
-  feedbackButtonSelected: { backgroundColor: '#dcebdd' },
-  feedbackButtonText: { color: '#39734f', fontSize: 14, fontWeight: '700', textTransform: 'capitalize' },
-  feedbackButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  feedbackCard: { backgroundColor: '#f2f2ef', borderRadius: 12, marginTop: 20, padding: 18 },
-  input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#b4b4b4',
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 16,
-    marginTop: 14,
-    padding: 12
-  },
-  investigationTitle: { color: '#1d1d20', fontSize: 22, fontWeight: '700', lineHeight: 30, marginTop: 28 },
-  provenanceCard: { backgroundColor: '#f2f2ef', borderRadius: 12, marginTop: 20, padding: 18 },
-  refreshButton: {
-    alignItems: 'center',
-    borderColor: '#39734f',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 16,
-    padding: 14
-  },
-  refreshButtonText: { color: '#39734f', fontSize: 16, fontWeight: '700' },
-  reviewCard: { backgroundColor: '#eef5ef', borderRadius: 12, marginTop: 24, padding: 18 },
-  status: { color: '#39734f', fontSize: 15, fontWeight: '600', marginTop: 28 },
-  title: { color: '#1d1d20', fontSize: 30, fontWeight: '700', lineHeight: 38, marginTop: 12 }
+  group: { gap: 12 },
+  investigationTitle: { ...typography.title, textTransform: 'capitalize' }
 });

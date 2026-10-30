@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { HealthInvestigationSummary } from '@health-coach/health-core/iron-regulation-panel';
+import { ActionButton } from './action-button';
 import { createFollowUpDraft } from './health-follow-up-state';
+import { SectionHeading } from './section-heading';
 import { supabase } from './supabase-client';
+import { colors, field, fonts, typography } from './theme';
 
 type HealthFollowUp = {
   completedAt: string | null;
@@ -153,7 +156,7 @@ export function HealthFollowUpSection({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>Health Follow-up</Text>
+      <SectionHeading title="Health Follow-up" />
       {currentFollowUp ? (
         <FollowUpCard
           completionNote={completionNote}
@@ -191,23 +194,23 @@ export function HealthFollowUpSection({
       ) : draft ? (
         <View style={styles.card}>
           <Text style={styles.purpose}>{draft.purpose}</Text>
-          <Text style={styles.detail}>{draft.rationale}</Text>
+          <Text style={typography.note}>{draft.rationale}</Text>
           <Text style={styles.due}>
             Due {formatDate(draft.dueStart)}–{formatDate(draft.dueEnd)}
           </Text>
           <ActionButton disabled={isSaving} label="Create Health Follow-up" onPress={() => void createFollowUp()} />
         </View>
       ) : (
-        <Text style={styles.detail}>This conclusion does not need a Health Follow-up right now.</Text>
+        <Text style={typography.note}>This conclusion does not need a Health Follow-up right now.</Text>
       )}
       {supersededFollowUps.map((followUp) => (
         <Text key={followUp.id} style={styles.superseded}>
           Superseded Health Follow-up: {followUp.purpose}
         </Text>
       ))}
-      {isSaving ? <ActivityIndicator color="#39734f" style={styles.indicator} /> : null}
+      {isSaving ? <ActivityIndicator color={colors.ink} style={styles.indicator} /> : null}
       {error ? (
-        <Text role="alert" style={styles.error}>
+        <Text role="alert" style={typography.alert}>
           {error}
         </Text>
       ) : null}
@@ -240,7 +243,7 @@ function FollowUpCard({
   return (
     <View style={styles.card}>
       <Text style={styles.purpose}>{followUp.purpose}</Text>
-      <Text style={styles.detail}>{followUp.rationale}</Text>
+      <Text style={typography.note}>{followUp.rationale}</Text>
       <Text style={styles.due}>
         Due {formatDate(followUp.dueStart)}–{formatDate(followUp.dueEnd)} · {followUp.state}
       </Text>
@@ -251,7 +254,8 @@ function FollowUpCard({
             multiline
             onChangeText={onChangeCompletionNote}
             placeholder="Briefly record what you completed"
-            style={styles.input}
+            placeholderTextColor={colors.secondary}
+            style={field.input}
             value={completionNote}
           />
           <ActionButton disabled={disabled} label="Complete with owner report" onPress={onComplete} />
@@ -261,16 +265,16 @@ function FollowUpCard({
               disabled={disabled}
               label={`Complete with ${source.label}`}
               onPress={() => onCompleteFromSource(source.id)}
-              secondary
+              variant="secondary"
             />
           ))}
           <View style={styles.row}>
-            <ActionButton disabled={disabled} label="Snooze 14 days" onPress={onSnooze} secondary />
-            <ActionButton disabled={disabled} label="Dismiss" onPress={onDismiss} secondary />
+            <ActionButton disabled={disabled} label="Snooze 14 days" onPress={onSnooze} variant="secondary" />
+            <ActionButton disabled={disabled} label="Dismiss" onPress={onDismiss} variant="secondary" />
           </View>
         </>
       ) : followUp.completionNote ? (
-        <Text style={styles.detail}>Owner report: {followUp.completionNote}</Text>
+        <Text style={typography.note}>Owner report: {followUp.completionNote}</Text>
       ) : null}
     </View>
   );
@@ -312,60 +316,12 @@ function formatDate(value: string): string {
   return value.slice(0, 10);
 }
 
-function ActionButton({
-  disabled,
-  label,
-  onPress,
-  secondary = false
-}: {
-  disabled: boolean;
-  label: string;
-  onPress: () => void;
-  secondary?: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={secondary ? styles.secondaryButton : styles.button}
-    >
-      <Text style={secondary ? styles.secondaryButtonText : styles.buttonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  button: { alignItems: 'center', backgroundColor: '#39734f', borderRadius: 8, marginTop: 12, padding: 12 },
-  buttonText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  card: { backgroundColor: '#f2f2ef', borderRadius: 12, marginTop: 12, padding: 18 },
-  detail: { color: '#55555a', fontSize: 15, lineHeight: 22, marginTop: 8 },
-  due: { color: '#39734f', fontSize: 14, fontWeight: '600', marginTop: 12 },
-  error: { color: '#9d1c1c', fontSize: 15, marginTop: 12 },
-  heading: { color: '#1d1d20', fontSize: 22, fontWeight: '700', marginTop: 28 },
+  card: { gap: 12 },
+  due: { ...typography.meta, color: colors.ink, fontFamily: fonts.semibold },
   indicator: { marginTop: 12 },
-  input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#b4b4b4',
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 16,
-    marginTop: 12,
-    minHeight: 80,
-    padding: 12
-  },
-  purpose: { color: '#1d1d20', fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  purpose: { ...typography.signal, fontSize: 16, lineHeight: 22 },
   row: { flexDirection: 'row', gap: 8 },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: '#39734f',
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    marginTop: 12,
-    padding: 12
-  },
-  secondaryButtonText: { color: '#39734f', fontSize: 14, fontWeight: '700' },
-  section: { marginTop: 4 },
-  superseded: { color: '#55555a', fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 12 }
+  section: { gap: 12 },
+  superseded: { ...typography.meta, fontStyle: 'italic' }
 });

@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionButton } from './action-button';
 import { supabase } from './supabase-client';
+import { ScreenLead } from './screen-lead';
+import { colors, field, layout, typography } from './theme';
+import { TopBar } from './top-bar';
 
 const prefillLocalOwner =
   __DEV__ &&
   /^http:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?\/?$/.test(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '');
 
-export function OwnerAccess({ children }: { children: (ownerId: string) => ReactNode }) {
+export function OwnerAccess({ children }: { children: (ownerId: string, signOut: () => void) => ReactNode }) {
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [email, setEmail] = useState(prefillLocalOwner ? 'owner@local.invalid' : '');
   const [password, setPassword] = useState(
@@ -16,18 +20,10 @@ export function OwnerAccess({ children }: { children: (ownerId: string) => React
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (ownerId)
-    return (
-      <View style={{ flex: 1 }}>
-        <Button
-          title="Sign out"
-          onPress={() => {
-            void supabase?.auth.signOut();
-            setOwnerId(null);
-          }}
-        />
-        {children(ownerId)}
-      </View>
-    );
+    return children(ownerId, () => {
+      void supabase?.auth.signOut();
+      setOwnerId(null);
+    });
   async function signIn() {
     if (!supabase) return;
     setBusy(true);
@@ -47,37 +43,54 @@ export function OwnerAccess({ children }: { children: (ownerId: string) => React
     }
   }
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
-      <Text accessibilityRole="header">Health Coach</Text>
-      <Text>Understand recent changes in your wearable record.</Text>
-      <Text>
-        Steps and recorded sleep are read only when you choose. A local comparison stays on your phone. Requesting an AI
-        explanation sends derived daily totals to your private server, and calculated comparisons plus your question to
-        the configured model; private review snapshots are retained for evaluation. No health actions are performed.
-      </Text>
-      {!supabase ? (
-        <Text>Configure the Supabase connection before signing in.</Text>
-      ) : (
-        <>
-          <TextInput
-            accessibilityLabel="Owner email"
-            placeholder="Owner email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextInput
-            accessibilityLabel="Owner password"
-            placeholder="Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          <Button title={busy ? 'Signing in…' : 'Sign in'} disabled={busy} onPress={() => void signIn()} />
-        </>
-      )}
-      {error ? <Text role="alert">{error}</Text> : null}
-    </ScrollView>
+    <View style={styles.screen}>
+      <TopBar />
+      <ScrollView contentContainerStyle={layout.screen} keyboardShouldPersistTaps="handled">
+        <ScreenLead context="Private owner access" headline="Understand recent changes in your wearable record.">
+          <Text style={typography.note}>
+            Steps and recorded sleep are read only when you choose. A local comparison stays on your phone. Requesting
+            an AI explanation sends derived daily totals to your private server, and calculated comparisons plus your
+            question to the configured model; private review snapshots are retained for evaluation. No health actions
+            are performed.
+          </Text>
+        </ScreenLead>
+        {!supabase ? (
+          <Text style={typography.alert}>Configure the Supabase connection before signing in.</Text>
+        ) : (
+          <View style={styles.form}>
+            <TextInput
+              accessibilityLabel="Owner email"
+              placeholder="Owner email"
+              placeholderTextColor={colors.secondary}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              style={field.input}
+            />
+            <TextInput
+              accessibilityLabel="Owner password"
+              placeholder="Password"
+              placeholderTextColor={colors.secondary}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              style={field.input}
+            />
+            <ActionButton label={busy ? 'Signing in…' : 'Sign in'} disabled={busy} onPress={() => void signIn()} />
+          </View>
+        )}
+        {error ? (
+          <Text role="alert" style={typography.alert}>
+            {error}
+          </Text>
+        ) : null}
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  form: { gap: 16 },
+  screen: { flex: 1 }
+});
