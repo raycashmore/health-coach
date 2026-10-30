@@ -36,7 +36,7 @@ owner decision, recorded in the specification.
 3. Review relevant [feedback](issue-tracker.md#feedback) that arrived since
    grooming. Feedback that challenges the ranking makes it stale.
 4. The ranked item was reviewed at grooming; selecting it needs no new product
-   panel. Use the personal review protocol at `~/.codex/agents/team-review.md`
+   panel. Use the personal `ray-team-review` skill
    for milestone acceptance and when evidence challenges the direction.
    Routine fixes and documentation changes need proportionate review.
 5. Record the selected item's smaller alternative, exclusions and owner-visible

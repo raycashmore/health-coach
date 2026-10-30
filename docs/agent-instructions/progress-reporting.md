@@ -1,7 +1,7 @@
 # Progress reporting
 
 Follow the shared plain-language summary protocol in
-`~/.codex/agents/team-review.md`. Keep technical contracts, revisions, checks and
+the `ray-team-review` skill. Keep technical contracts, revisions, checks and
 decision history in the existing issue/brief. Follow
 [record ownership](issue-tracker.md#record-ownership) rather than duplicating status.
 
