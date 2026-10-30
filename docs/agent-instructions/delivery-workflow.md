@@ -81,5 +81,6 @@ Review the scoped diff and checks, record the three
 [verdicts](product-oversight.md#accept-the-outcome), then save one
 [tracker checkpoint](issue-tracker.md#checkpoint). Use
 [progress reporting](progress-reporting.md) for the owner summary. Keep remaining
-acceptance gates and authority available to the next chat. Finish the selected
-slice before proposing another outcome; proposing it does not start it.
+acceptance gates and authority available to the next chat. The ranking, not
+this slice, decides what follows; file new ideas for
+[grooming](product-oversight.md#groom-the-backlog).

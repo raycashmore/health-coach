@@ -18,7 +18,7 @@ govern strategy; completed tracker state does not establish current acceptance.
 ## Operating workflow
 
 - **Resume or checkpoint:** read [tracker ownership and feedback](docs/agent-instructions/issue-tracker.md).
-- **Select, expand or accept a capability:** read [product oversight](docs/agent-instructions/product-oversight.md).
+- **Groom the backlog, select, expand or accept a capability:** read [product oversight](docs/agent-instructions/product-oversight.md).
 - **Prepare, implement, verify or publish:** read [delivery workflow](docs/agent-instructions/delivery-workflow.md).
 - **Report progress or close out:** read [progress reporting](docs/agent-instructions/progress-reporting.md).
 - **Change domain terms or architecture:** read [domain guidance](docs/agents/domain.md) and [architecture](docs/architecture.md).

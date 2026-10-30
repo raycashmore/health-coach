@@ -1,28 +1,46 @@
 # Product oversight
 
-Use when selecting, expanding or accepting a capability. Resume from the
+Use when grooming the backlog, or selecting, expanding or accepting a
+capability. Resume from the
 [current handoff and governing records](issue-tracker.md#start-or-resume).
 
-## Choose one outcome
+## Groom the backlog
 
-1. Recover the selected issue, its existing brief and unfinished acceptance.
-   Establish what the owner can actually do, the supporting environment and the
-   largest evidenced obstacle in the specification's complete owner journey.
-2. Review relevant [feedback](issue-tracker.md#feedback). Completed planning and
-   old roadmap ideas are context; current evidence determines the next outcome.
-3. Before selecting a new capability, changing material direction or accepting a
-   product milestone, use the personal review protocol at
-   `~/.codex/agents/team-review.md`: Product Manager, Product Designer and
-   Engineering Lead give independent assessments, with one challenge round for
-   material disagreement. Routine fixes and documentation changes need
-   proportionate review, not a product panel.
-4. Compare at most three options, including assessing or simplifying existing
-   work when useful. State origin, benefit, evidence, effort and ongoing cost.
-   Record the winner, strongest objection and its disposition, smaller
-   alternative, exclusions and owner-visible proof in the existing issue/brief.
-5. Keep one selected slice and at most two conditional next candidates in the
-   handoff. Empty next/later lists are valid. Preserve the release specification;
-   a material change to its outcome requires an explicit owner decision.
+Grooming sets priority, interactively with the owner, in its own session. Use
+the shared `~/.agents/skills/ray-groom-backlog/` workflow; it defines the
+steps, the staleness triggers and the review panel's role. Health Coach
+specifics:
+
+- Build the journey map from the
+  [first-version specification](https://linear.app/cashmore/document/first-version-product-and-architecture-specification-8f43cf731f86),
+  including open proposals and reassessments recorded there.
+- Candidates are Health coach project issues. Proposed items carry the
+  `needs-triage` label until groomed.
+- Write the ranking to the “Ranking” section of
+  [now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c),
+  with links, one-line reasons, the date and a reset slices-since-grooming count.
+- Mirror it in Linear: Now is Todo with High priority; Next is Backlog with
+  Medium; Later is Backlog with Low; Not doing is Canceled with a reason comment.
+  Remove `needs-triage` from every groomed item.
+
+A material change to the specification's release outcome requires an explicit
+owner decision, recorded in the specification.
+
+## Take the next outcome
+
+1. Resume the in-progress issue first: its brief, unfinished implementation and
+   acceptance. Establish what the owner can actually do and in which environment.
+2. Otherwise take the ranking's Now item. When the ranking is stale or has no
+   ready Now item, groom first. The previous handoff's ideas for new work are
+   grooming input, not selections.
+3. Review relevant [feedback](issue-tracker.md#feedback) that arrived since
+   grooming. Feedback that challenges the ranking makes it stale.
+4. The ranked item was reviewed at grooming; selecting it needs no new product
+   panel. Use the personal review protocol at `~/.codex/agents/team-review.md`
+   for milestone acceptance and when evidence challenges the direction.
+   Routine fixes and documentation changes need proportionate review.
+5. Record the selected item's smaller alternative, exclusions and owner-visible
+   proof in the existing issue/brief.
 
 Before implementation, the issue/brief must name observable success, required
 environment, first verifiable increment, scope, exclusions, investigation limit,
@@ -37,7 +55,8 @@ in those sources rather than copying them here.
 Routine defects stay within the slice. Reconsider direction when a material
 assumption fails, scope grows, a required environment cannot establish acceptance,
 or investigation reaches its limit without new evidence. Record the consequence
-and smallest resolving check; continue independent authorized work. Ask the owner
+and smallest resolving check, and treat the ranking as stale; continue
+independent authorized work. Ask the owner
 only for a missing consequential choice or authority. Preserve current grants
 with their action, environment and limits.
 

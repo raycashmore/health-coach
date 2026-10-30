@@ -5,10 +5,11 @@ Linear owns planning; the repository owns reusable operating guidance.
 
 ## Start or resume
 
-1. Read [Health Coach — now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c),
-   then its selected issue and existing brief. Recover evidence, remaining gates,
-   authority and one next action before choosing work.
-2. At selection or expansion, read the
+1. Read [Health Coach — now, next and later](https://linear.app/cashmore/document/health-coach-now-next-and-later-878de48e456c):
+   its ranking, last-groomed date and current handoff. Then read the in-progress
+   or Now issue and existing brief. Recover evidence, remaining gates, authority
+   and the resume action before choosing work.
+2. At grooming or expansion, read the
    [planning map](https://linear.app/cashmore/issue/RAY-93/find-the-product-and-architecture-for-a-learning-first-personal-health),
    [first-version specification](https://linear.app/cashmore/document/first-version-product-and-architecture-specification-8f43cf731f86)
    and relevant feedback. Load further history for unresolved questions.
@@ -26,7 +27,8 @@ report any evidence that remains inaccessible.
 
 | Record                           | Owns                                                                                        |
 | -------------------------------- | ------------------------------------------------------------------------------------------- |
-| Journey / current handoff        | Current outcome, selected task, revision, environment, gates, authority and one next action |
+| Journey / current handoff        | Current outcome, selected task, revision, environment, gates, authority and resume action   |
+| Ranking (same document)          | Now/Next/Later/Not doing order, last-groomed date and slices completed since; grooming only |
 | Issue                            | Scope, acceptance criteria, state, dependencies and links                                   |
 | Existing brief, or issue if none | Decisions, dated evidence, three verdicts and retrospective when useful                     |
 | Planning map                     | Durable strategy and decision index                                                         |
@@ -43,8 +45,13 @@ At handoff, pause, material direction/acceptance change or closeout:
    [verdicts](product-oversight.md#accept-the-outcome).
 2. Update issue metadata only when scope, state or dependencies change.
 3. Replace the journey's current handoff once with a short result, evidence link,
-   remaining gates, authority source and next action. Keep dated detail in the
-   evidence record, with [reporting conventions](progress-reporting.md).
+   remaining gates, authority source and resume action. When the slice is
+   complete, point to the ranking and add one to the slices-since-grooming count;
+   leave the ranking itself to [grooming](product-oversight.md#groom-the-backlog).
+   Replace rather than append: dated detail belongs in the evidence record, with
+   [reporting conventions](progress-reporting.md).
+4. File ideas for new work as Backlog issues labelled `needs-triage`, within
+   tracker write authority, for the next grooming.
 
 Use exact patches where supported; re-read after an anchor failure. Check every
 write result before dependent updates or claims of success. If saving fails,
