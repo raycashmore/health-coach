@@ -102,9 +102,23 @@ describe('wearable comparison and replay', () => {
     expect(() => buildWearableReview(snapshot(), new Date('2026-10-28T05:00:00Z'))).toThrow();
     expect(() => buildWearableReview(snapshot(), new Date('2026-10-28T02:00:00Z'))).toThrow();
   });
-  it('rejects old snapshots whose sleep was grouped by calendar day', () => {
+  it('replays old calendar-day sleep without interpreting it as wake-day sleep', () => {
     const { sleepGrouping: _oldGrouping, ...oldSnapshot } = snapshot();
-    expect(() => buildWearableReview(oldSnapshot, asOf)).toThrow();
+    oldSnapshot.days.forEach((day) => {
+      day.sleepMinutes = { value: 420, origins: ['example.source'] };
+    });
+    const result = buildWearableReview(oldSnapshot, asOf);
+    expect(result.calculationVersion).toBe('2');
+    expect(result.evidence.find((item) => item.id === 'sleepMinutes')).toMatchObject({
+      baselineStart: '2026-10-07',
+      recentStart: '2026-10-25',
+      endDate: '2026-10-27',
+      recentMean: 420
+    });
+    expect(result.limitations).toContain(
+      'Sleep is the Health Connect recorded duration within local midnight-to-midnight windows, not a last-night score.'
+    );
+    expect(() => buildWearableReview({ ...oldSnapshot, sleepGrouping: 'unknown' }, asOf)).toThrow();
   });
   it('replays a historical snapshot only at its original time boundary', () => {
     const input = snapshot();

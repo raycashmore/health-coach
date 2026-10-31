@@ -14,7 +14,7 @@ const measurementSchema = z.object({
 });
 
 export const wearableSnapshotSchema = z.object({
-  sleepGrouping: z.literal('next-wake-day'),
+  sleepGrouping: z.literal('next-wake-day').optional(),
   timeZone: z
     .string()
     .min(1)
@@ -98,6 +98,7 @@ export function dateInZone(now: Date, timeZone: string): string {
 /** Replay with an explicit asOf; later observations and unfinished days are rejected. */
 export function buildWearableReview(value: unknown, asOf = new Date()): WearableReviewInput {
   const snapshot = wearableSnapshotSchema.parse(value);
+  const wakeDaySleep = snapshot.sleepGrouping === 'next-wake-day';
   if (snapshot.completedBefore !== dateInZone(asOf, snapshot.timeZone)) {
     throw new Error('Read the latest completed days before reviewing.');
   }
@@ -146,22 +147,24 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
       difference: round(difference),
       recentDays: recent.length,
       baselineDays: baseline.length,
-      recentStart: shiftDate(snapshot.completedBefore, metric === 'steps' ? -3 : -2),
-      baselineStart: shiftDate(snapshot.completedBefore, metric === 'steps' ? -21 : -20),
-      endDate: shiftDate(snapshot.completedBefore, metric === 'steps' ? -1 : 0),
+      recentStart: shiftDate(snapshot.completedBefore, metric === 'sleepMinutes' && wakeDaySleep ? -2 : -3),
+      baselineStart: shiftDate(snapshot.completedBefore, metric === 'sleepMinutes' && wakeDaySleep ? -20 : -21),
+      endDate: shiftDate(snapshot.completedBefore, metric === 'sleepMinutes' && wakeDaySleep ? 0 : -1),
       origins,
       notable: Math.abs(difference) >= threshold
     });
   }
   return {
-    calculationVersion: wearableCalculationVersion,
+    calculationVersion: wakeDaySleep ? wearableCalculationVersion : '2',
     status:
       evidence.length === 0 ? 'insufficient-data' : evidence.some((item) => item.notable) ? 'change' : 'no-change',
     evidence,
     coverage,
     limitations: [
       'Recorded totals do not establish complete device wear or explain a cause.',
-      'Sleep is Health Connect session duration grouped by the local day each session ends, including naps; it is not necessarily time asleep. Today may not yet include all naps.',
+      wakeDaySleep
+        ? 'Sleep is Health Connect session duration grouped by the local day each session ends, including naps; it is not necessarily time asleep. Today may not yet include all naps.'
+        : 'Sleep is the Health Connect recorded duration within local midnight-to-midnight windows, not a last-night score.',
       'The short comparison is exploratory; weekday mix, travel and source changes can affect it.',
       'Only steps and recorded sleep are reviewed. Labs, genetics and other signals are not assessed.',
       ...coverage
