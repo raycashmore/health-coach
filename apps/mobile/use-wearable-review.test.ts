@@ -6,6 +6,7 @@ vi.mock('./read-wearable-snapshot', () => ({}));
 import { isStale } from './use-wearable-review';
 
 const snapshot = (syncedAt: string, completedBefore: string): WearableSnapshot => ({
+  sleepGrouping: 'next-wake-day',
   completedBefore,
   days: [],
   syncedAt,

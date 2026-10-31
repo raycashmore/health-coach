@@ -6,6 +6,7 @@ const asOf = new Date('2026-10-28T03:00:00Z');
 function snapshot(): WearableSnapshot {
   return {
     completedBefore: '2026-10-28',
+    sleepGrouping: 'next-wake-day',
     timeZone: 'Australia/Sydney',
     syncedAt: asOf.toISOString(),
     days: Array.from({ length: 21 }, (_, index) => ({
@@ -63,7 +64,12 @@ describe('wearable comparison and replay', () => {
       day.sleepMinutes = { value: index < 18 ? 420 : 480, origins: [index < 18 ? 'example.old' : 'example.new'] };
     });
     const result = buildWearableReview(input, asOf);
-    expect(result.evidence.find((item) => item.id === 'sleepMinutes')).toMatchObject({ difference: 60 });
+    expect(result.evidence.find((item) => item.id === 'sleepMinutes')).toMatchObject({
+      difference: 60,
+      baselineStart: '2026-10-08',
+      recentStart: '2026-10-26',
+      endDate: '2026-10-28'
+    });
     expect(result.coverage[1]).toMatchObject({ originsChanged: true, comparable: true });
     expect(result.limitations).toContain(
       'Recorded sleep: contributing sources vary across days. Source or priority changes may affect the recorded difference.'
@@ -95,6 +101,10 @@ describe('wearable comparison and replay', () => {
     expect(() => buildWearableReview(duplicate, asOf)).toThrow();
     expect(() => buildWearableReview(snapshot(), new Date('2026-10-28T05:00:00Z'))).toThrow();
     expect(() => buildWearableReview(snapshot(), new Date('2026-10-28T02:00:00Z'))).toThrow();
+  });
+  it('rejects old snapshots whose sleep was grouped by calendar day', () => {
+    const { sleepGrouping: _oldGrouping, ...oldSnapshot } = snapshot();
+    expect(() => buildWearableReview(oldSnapshot, asOf)).toThrow();
   });
   it('replays a historical snapshot only at its original time boundary', () => {
     const input = snapshot();

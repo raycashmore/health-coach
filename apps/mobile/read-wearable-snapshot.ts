@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 import type { WearableSnapshot } from '@health-coach/health-core/wearable-review';
 import type { WearableMetric } from './wearable-labels';
-import { dateInZone } from '@health-coach/health-core/wearable-review';
+import { dateInZone, shiftDate } from '@health-coach/health-core/wearable-review';
+import { readSleepByWakeDay } from './read-sleep-sessions';
 
 const readPermissions = [
   { accessType: 'read', recordType: 'Steps' },
@@ -44,6 +45,7 @@ export async function readWearableSnapshot(): Promise<WearableRead> {
   const now = new Date();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sleepByDay = canRead('SleepSession') ? await readSleepByWakeDay(health, midnight, now, timeZone) : new Map();
   const days: WearableSnapshot['days'] = [];
   for (let offset = -21; offset < 0; offset += 1) {
     // Calendar arithmetic preserves local midnight across daylight-saving changes.
@@ -56,25 +58,28 @@ export async function readWearableSnapshot(): Promise<WearableRead> {
       startTime: start.toISOString(),
       endTime: end.toISOString()
     } as const;
-    const [fitSteps, allSteps, sleep] = await Promise.all([
+    const [fitSteps, allSteps] = await Promise.all([
       canRead('Steps')
         ? health.aggregateRecord({ recordType: 'Steps', timeRangeFilter, dataOriginFilter: [googleFitOrigin] })
         : null,
-      canRead('Steps') ? health.aggregateRecord({ recordType: 'Steps', timeRangeFilter }) : null,
-      canRead('SleepSession') ? health.aggregateRecord({ recordType: 'SleepSession', timeRangeFilter }) : null
+      canRead('Steps') ? health.aggregateRecord({ recordType: 'Steps', timeRangeFilter }) : null
     ]);
     const steps = fitSteps?.dataOrigins.length ? fitSteps : allSteps;
     days.push({
       date: dateInZone(start, timeZone),
       // Prefer Fit's exported steps; use the deduplicated Health Connect total when Fit has no records.
       steps: steps?.dataOrigins.length ? { value: steps.COUNT_TOTAL, origins: steps.dataOrigins } : null,
-      sleepMinutes: sleep?.dataOrigins.length
-        ? { value: sleep.SLEEP_DURATION_TOTAL / 60, origins: sleep.dataOrigins }
-        : null
+      sleepMinutes: sleepByDay.get(shiftDate(dateInZone(start, timeZone), 1)) ?? null
     });
   }
   return {
-    snapshot: { days, timeZone, completedBefore: dateInZone(midnight, timeZone), syncedAt: new Date().toISOString() },
+    snapshot: {
+      days,
+      timeZone,
+      sleepGrouping: 'next-wake-day',
+      completedBefore: dateInZone(midnight, timeZone),
+      syncedAt: new Date().toISOString()
+    },
     blocked: [
       ...(canRead('Steps') ? [] : ['steps' as const]),
       ...(canRead('SleepSession') ? [] : ['sleepMinutes' as const])

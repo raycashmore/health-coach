@@ -28,6 +28,7 @@ function validRequest() {
       snapshot: {
         timeZone: 'UTC',
         completedBefore,
+        sleepGrouping: 'next-wake-day',
         syncedAt: now.toISOString(),
         days: Array.from({ length: 21 }, (_, index) => ({
           date: shiftDate(completedBefore, index - 21),

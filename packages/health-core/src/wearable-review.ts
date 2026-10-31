@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const wearableCalculationVersion = '2';
-export const wearablePromptVersion = '5';
+export const wearableCalculationVersion = '3';
+export const wearablePromptVersion = '6';
 export const wearableMetrics = ['steps', 'sleepMinutes'] as const;
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const measurementSchema = z.object({
@@ -14,6 +14,7 @@ const measurementSchema = z.object({
 });
 
 export const wearableSnapshotSchema = z.object({
+  sleepGrouping: z.literal('next-wake-day'),
   timeZone: z
     .string()
     .min(1)
@@ -145,9 +146,9 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
       difference: round(difference),
       recentDays: recent.length,
       baselineDays: baseline.length,
-      recentStart: shiftDate(snapshot.completedBefore, -3),
-      baselineStart: shiftDate(snapshot.completedBefore, -21),
-      endDate: shiftDate(snapshot.completedBefore, -1),
+      recentStart: shiftDate(snapshot.completedBefore, metric === 'steps' ? -3 : -2),
+      baselineStart: shiftDate(snapshot.completedBefore, metric === 'steps' ? -21 : -20),
+      endDate: shiftDate(snapshot.completedBefore, metric === 'steps' ? -1 : 0),
       origins,
       notable: Math.abs(difference) >= threshold
     });
@@ -160,7 +161,7 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
     coverage,
     limitations: [
       'Recorded totals do not establish complete device wear or explain a cause.',
-      'Sleep is the Health Connect recorded duration within local midnight-to-midnight windows, not a last-night score.',
+      'Sleep is Health Connect session duration grouped by the local day each session ends, including naps; it is not necessarily time asleep. Today may not yet include all naps.',
       'The short comparison is exploratory; weekday mix, travel and source changes can affect it.',
       'Only steps and recorded sleep are reviewed. Labs, genetics and other signals are not assessed.',
       ...coverage

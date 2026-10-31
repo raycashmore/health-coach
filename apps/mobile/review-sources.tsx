@@ -28,7 +28,7 @@ export function ReviewSources({ coverage, status }: { coverage: WearableReviewIn
               {item.originsChanged ? ' · Sources changed' : ''}
             </Text>
           ))}
-          <Text style={typography.meta}>Sleep is counted midnight to midnight.</Text>
+          <Text style={typography.meta}>Sleep sessions are grouped by the day they end, including naps and today.</Text>
         </View>
       ) : null}
     </View>
