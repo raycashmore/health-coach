@@ -11,6 +11,7 @@
     "dev": "turbo run dev inngest:dev",
     "dev:apps": "turbo run dev",
     "dev:phone": "node scripts/phone-development.mjs --start",
+    "dev:phone:restart": "node scripts/phone-development.mjs --restart",
     "doctor:phone": "node scripts/phone-development.mjs",
     "ai:key:create": "node scripts/setup-ai-gateway.mjs",
     "ai:models": "node scripts/list-gateway-models.mjs",

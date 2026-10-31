@@ -13,6 +13,8 @@ import {
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { createConnection } from 'node:net';
+import { once } from 'node:events';
 import { parseGatewayKey, runPrivateCommand } from './private-command.mjs';
 import {
   projectRoot,
@@ -30,6 +32,7 @@ import {
 import { runModelSmoke } from './smoke-wearable-model.mjs';
 import { latestOpenAIModels } from './list-gateway-models.mjs';
 import { containsRecognizableCredential, sourceFileContainsCredential } from './check-public-secrets.mjs';
+import { createPhoneRestartControl, requestPhoneRestart } from './phone-restart.mjs';
 
 test('command failures and malformed credential output never enter thrown errors', () => {
   const secret = 'SENSITIVE_TEST_SENTINEL';
@@ -161,6 +164,46 @@ test('runtime checks distinguish wrong services, unreachable ports and invalid o
   );
 });
 
+test('phone restart contacts only a managed supervisor and does not restart it during discovery', async () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'health-coach-control-'));
+  const path = resolve(directory, 'control.sock');
+  let calls = 0;
+  const server = await createPhoneRestartControl(path, () => {
+    calls += 1;
+    return true;
+  });
+  try {
+    await assert.rejects(() => createPhoneRestartControl(path, () => true), /already running/);
+    assert.equal(calls, 0);
+    await requestPhoneRestart(path);
+    assert.equal(calls, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    rmSync(directory, { recursive: true, force: true });
+  }
+  await assert.rejects(() => requestPhoneRestart(path), /No managed phone stack/);
+});
+
+test('phone control tolerates disconnected peers and closes idle connections on shutdown', async () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'health-coach-control-'));
+  const path = resolve(directory, 'control.sock');
+  const server = await createPhoneRestartControl(path, () => true);
+  try {
+    const disconnected = createConnection(path);
+    await once(disconnected, 'connect');
+    disconnected.write('status');
+    disconnected.destroy();
+    await requestPhoneRestart(path);
+    const idle = createConnection(path);
+    await once(idle, 'connect');
+    const closed = new Promise((resolve) => server.close(resolve));
+    await closed;
+    idle.destroy();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('model smoke requires explicit paid opt-in and returns only metadata from synthetic evidence', async () => {
   let calls = 0;
   const generate = async (input) => {
@@ -173,6 +216,45 @@ test('model smoke requires explicit paid opt-in and returns only metadata from s
   const report = await runModelSmoke({ allowPaid: true, model: 'example/model', generate });
   assert.equal(calls, 1);
   assert.equal(JSON.stringify(report).includes('PRIVATE_OUTPUT_SENTINEL'), false);
+});
+
+test('wearable evaluation replays a legacy calendar-day snapshot', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'health-coach-replay-'));
+  try {
+    const path = resolve(directory, 'cases.json');
+    const start = new Date('2026-10-07T00:00:00Z');
+    const days = Array.from({ length: 21 }, (_, index) => ({
+      date: new Date(start.getTime() + index * 86400000).toISOString().slice(0, 10),
+      steps: { value: 5000, origins: ['example.source'] },
+      sleepMinutes: { value: 420, origins: ['example.source'] }
+    }));
+    writeFileSync(
+      path,
+      JSON.stringify([
+        {
+          snapshot: { timeZone: 'UTC', completedBefore: '2026-10-28', syncedAt: '2026-10-28T12:00:00Z', days },
+          asOf: '2026-10-28T12:00:00Z',
+          expectedStatus: 'no-change',
+          expectedEvidenceIds: ['steps', 'sleepMinutes']
+        }
+      ])
+    );
+    const output = runPrivateCommand(process.execPath, [
+      '--import',
+      'tsx',
+      'scripts/evaluate-wearable-review.ts',
+      path
+    ]);
+    assert.deepEqual(JSON.parse(output), {
+      caseCount: 1,
+      statusPasses: 1,
+      retrievalPasses: 1,
+      explanationCount: 0,
+      explanationPasses: 0
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('catalog discovery considers release order rather than a hard-coded shortlist', () => {

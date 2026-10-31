@@ -218,6 +218,7 @@ on the main Wireless debugging page. Keep Wireless debugging enabled. USB also w
 ```sh
 pnpm doctor:phone       # Diagnose the device, installed app, tunnels, local config/auth and server reachability.
 pnpm dev:phone          # Configure local endpoints, restore tunnels, start missing servers and open the installed app.
+pnpm dev:phone:restart  # Restart a stack managed by dev:phone and reopen the app.
 # With multiple connected devices, add --device DEVICE_ID to either command.
 ```
 
@@ -226,6 +227,8 @@ database, install an app, change a password, read health records or invoke a mod
 before changing mobile configuration. It forwards ports 8081, 54321 and 3000 over the selected debugging connection.
 New Metro and web servers listen on loopback only; Metro prefers IPv4 so the forwarded address is reachable.
 Existing reachable servers are reused; unrelated applications on the required ports are left untouched.
+Restart works when the running supervisor started both web and Metro. It leaves reused or unmanaged servers untouched;
+stop their original owner first if a full restart is needed. A restart reopens the app, which signs the owner out.
 
 Keep `dev:phone` running when it starts servers; Ctrl-C stops only those servers it started. Private server output goes
 to ignored `.scratch/dev-phone/web.log` and `metro.log`, rather than the chat or repository. Metro reloads the app as
