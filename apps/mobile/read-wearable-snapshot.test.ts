@@ -66,6 +66,23 @@ describe('foreground wearable read', () => {
     expect(snapshot.days.every((day) => day.sleepMinutes?.value === 420)).toBe(true);
     expect(snapshot.days.at(-1)?.date).not.toBe(snapshot.completedBefore);
   });
+  it('prefers Fit steps and falls back to the merged total when Fit has no records', async () => {
+    health.initialize.mockResolvedValue(true);
+    health.getGrantedPermissions.mockResolvedValue([{ accessType: 'read', recordType: 'Steps' }]);
+    let day = 0;
+    health.aggregateRecord.mockImplementation(async (request: { dataOriginFilter?: string[] }) => {
+      if (request.dataOriginFilter) {
+        day += 1;
+        return day === 1
+          ? { COUNT_TOTAL: 4000, dataOrigins: ['com.google.android.apps.fitness'] }
+          : { COUNT_TOTAL: 0, dataOrigins: [] };
+      }
+      return { COUNT_TOTAL: 5000, dataOrigins: ['example.other'] };
+    });
+    const { snapshot } = await readWearableSnapshot();
+    expect(snapshot.days[0]?.steps).toEqual({ value: 4000, origins: ['com.google.android.apps.fitness'] });
+    expect(snapshot.days[1]?.steps).toEqual({ value: 5000, origins: ['example.other'] });
+  });
   it('uses calendar-day boundaries across a daylight-saving transition', async () => {
     vi.stubEnv('TZ', 'Australia/Sydney');
     vi.useFakeTimers();

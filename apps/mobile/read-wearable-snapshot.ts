@@ -7,6 +7,7 @@ const readPermissions = [
   { accessType: 'read', recordType: 'Steps' },
   { accessType: 'read', recordType: 'SleepSession' }
 ] as const;
+const googleFitOrigin = 'com.google.android.apps.fitness';
 
 export class HealthConnectPermissionError extends Error {}
 
@@ -55,13 +56,17 @@ export async function readWearableSnapshot(): Promise<WearableRead> {
       startTime: start.toISOString(),
       endTime: end.toISOString()
     } as const;
-    const [steps, sleep] = await Promise.all([
+    const [fitSteps, allSteps, sleep] = await Promise.all([
+      canRead('Steps')
+        ? health.aggregateRecord({ recordType: 'Steps', timeRangeFilter, dataOriginFilter: [googleFitOrigin] })
+        : null,
       canRead('Steps') ? health.aggregateRecord({ recordType: 'Steps', timeRangeFilter }) : null,
       canRead('SleepSession') ? health.aggregateRecord({ recordType: 'SleepSession', timeRangeFilter }) : null
     ]);
+    const steps = fitSteps?.dataOrigins.length ? fitSteps : allSteps;
     days.push({
       date: dateInZone(start, timeZone),
-      // Native aggregation honours Health Connect source priority; never sum raw sources.
+      // Prefer Fit's exported steps; use the deduplicated Health Connect total when Fit has no records.
       steps: steps?.dataOrigins.length ? { value: steps.COUNT_TOTAL, origins: steps.dataOrigins } : null,
       sleepMinutes: sleep?.dataOrigins.length
         ? { value: sleep.SLEEP_DURATION_TOTAL / 60, origins: sleep.dataOrigins }
