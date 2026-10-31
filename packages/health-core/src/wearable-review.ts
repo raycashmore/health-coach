@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const wearableCalculationVersion = '2';
-export const wearablePromptVersion = '4';
+export const wearableCalculationVersion = '3';
+export const wearablePromptVersion = '6';
 export const wearableMetrics = ['steps', 'sleepMinutes'] as const;
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const measurementSchema = z.object({
@@ -14,6 +14,7 @@ const measurementSchema = z.object({
 });
 
 export const wearableSnapshotSchema = z.object({
+  sleepGrouping: z.literal('next-wake-day').optional(),
   timeZone: z
     .string()
     .min(1)
@@ -97,6 +98,7 @@ export function dateInZone(now: Date, timeZone: string): string {
 /** Replay with an explicit asOf; later observations and unfinished days are rejected. */
 export function buildWearableReview(value: unknown, asOf = new Date()): WearableReviewInput {
   const snapshot = wearableSnapshotSchema.parse(value);
+  const wakeDaySleep = snapshot.sleepGrouping === 'next-wake-day';
   if (snapshot.completedBefore !== dateInZone(asOf, snapshot.timeZone)) {
     throw new Error('Read the latest completed days before reviewing.');
   }
@@ -145,22 +147,24 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
       difference: round(difference),
       recentDays: recent.length,
       baselineDays: baseline.length,
-      recentStart: shiftDate(snapshot.completedBefore, -3),
-      baselineStart: shiftDate(snapshot.completedBefore, -21),
-      endDate: shiftDate(snapshot.completedBefore, -1),
+      recentStart: shiftDate(snapshot.completedBefore, metric === 'sleepMinutes' && wakeDaySleep ? -2 : -3),
+      baselineStart: shiftDate(snapshot.completedBefore, metric === 'sleepMinutes' && wakeDaySleep ? -20 : -21),
+      endDate: shiftDate(snapshot.completedBefore, metric === 'sleepMinutes' && wakeDaySleep ? 0 : -1),
       origins,
       notable: Math.abs(difference) >= threshold
     });
   }
   return {
-    calculationVersion: wearableCalculationVersion,
+    calculationVersion: wakeDaySleep ? wearableCalculationVersion : '2',
     status:
       evidence.length === 0 ? 'insufficient-data' : evidence.some((item) => item.notable) ? 'change' : 'no-change',
     evidence,
     coverage,
     limitations: [
       'Recorded totals do not establish complete device wear or explain a cause.',
-      'Sleep is the Health Connect recorded duration within local midnight-to-midnight windows, not a last-night score.',
+      wakeDaySleep
+        ? 'Sleep is Health Connect session duration grouped by the local day each session ends, including naps; it is not necessarily time asleep. Today may not yet include all naps.'
+        : 'Sleep is the Health Connect recorded duration within local midnight-to-midnight windows, not a last-night score.',
       'The short comparison is exploratory; weekday mix, travel and source changes can affect it.',
       'Only steps and recorded sleep are reviewed. Labs, genetics and other signals are not assessed.',
       ...coverage
@@ -182,8 +186,8 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
 export const wearableExplanationSchema = z.object({
   observation: z.string().min(1).max(1200),
   evidenceIds: z.array(z.enum(wearableMetrics)).min(1).max(2),
-  uncertainty: z.string().min(1).max(600),
-  contextQuestion: z.string().min(1).max(300)
+  uncertainty: z.string().min(1).max(600).nullable(),
+  contextQuestion: z.string().min(1).max(300).nullable()
 });
 export type WearableExplanation = z.infer<typeof wearableExplanationSchema>;
 

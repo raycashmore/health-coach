@@ -18,7 +18,7 @@ vi.mock('node:crypto', async (importOriginal) => {
 import { POST } from './route';
 import { dateInZone, shiftDate } from '@health-coach/health-core/wearable-review';
 
-function validRequest() {
+function validRequest(legacy = false) {
   const now = new Date();
   const completedBefore = dateInZone(now, 'UTC');
   return new Request('http://localhost/api/wearable-review', {
@@ -28,6 +28,7 @@ function validRequest() {
       snapshot: {
         timeZone: 'UTC',
         completedBefore,
+        ...(legacy ? {} : { sleepGrouping: 'next-wake-day' }),
         syncedAt: now.toISOString(),
         days: Array.from({ length: 21 }, (_, index) => ({
           date: shiftDate(completedBefore, index - 21),
@@ -87,6 +88,38 @@ describe('private wearable review access', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ kind: 'baseline', analysis: { status: 'no-change' } });
     expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.explain).not.toHaveBeenCalled();
+  });
+  it('accepts an older client and adapts nullable explanations to its required string fields', async () => {
+    vi.stubEnv('WEARABLE_AI_ENABLED', 'true');
+    vi.stubEnv('WEARABLE_REVIEW_MODEL', 'test/model');
+    vi.stubEnv('AI_GATEWAY_API_KEY', 'test-only');
+    mocks.getUser.mockResolvedValue({ data: { user: { id: process.env.HEALTH_RECORD_OWNER_ID } }, error: null });
+    mocks.rpc.mockResolvedValue({ data: 'example-review', error: null });
+    mocks.from.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          single: async () => ({
+            data: {
+              status: 'succeeded',
+              output_snapshot: {
+                observation: 'Recorded steps were steady.',
+                evidenceIds: ['steps'],
+                uncertainty: null,
+                contextQuestion: null
+              }
+            },
+            error: null
+          })
+        })
+      })
+    });
+    const response = await POST(validRequest(true));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      analysis: { calculationVersion: '2' },
+      explanation: { uncertainty: ' ', contextQuestion: ' ' }
+    });
     expect(mocks.explain).not.toHaveBeenCalled();
   });
   it('does not make a second model call for an existing in-progress reservation', async () => {

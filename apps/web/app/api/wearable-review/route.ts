@@ -7,6 +7,7 @@ import {
   wearablePromptVersion,
   wearableReviewRequestSchema
 } from '@health-coach/health-core/wearable-review';
+import type { WearableExplanation } from '@health-coach/health-core/wearable-review';
 import { explainWearableReview } from '../../../lib/explain-wearable-review';
 
 export const runtime = 'nodejs';
@@ -14,6 +15,16 @@ export const maxDuration = 60;
 
 function reply(body: object, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+function explanationForClient(explanation: WearableExplanation, legacy: boolean): WearableExplanation {
+  if (!legacy) return explanation;
+  // Older app builds require nonempty strings for both optional sections.
+  return {
+    ...explanation,
+    uncertainty: explanation.uncertainty ?? ' ',
+    contextQuestion: explanation.contextQuestion ?? ' '
+  };
 }
 
 async function readBoundedJson(request: Request): Promise<unknown> {
@@ -109,7 +120,12 @@ export async function POST(request: Request) {
   if (stored.data.status === 'succeeded') {
     try {
       const explanation = validateWearableExplanation(stored.data.output_snapshot, analysis);
-      return reply({ kind: 'ai', analysis, reviewId, explanation });
+      return reply({
+        kind: 'ai',
+        analysis,
+        reviewId,
+        explanation: explanationForClient(explanation, !snapshot.sleepGrouping)
+      });
     } catch {
       return reply({ error: 'The stored explanation could not be verified.' }, 502);
     }
@@ -130,7 +146,12 @@ export async function POST(request: Request) {
       .eq('id', reviewId)
       .eq('status', 'running');
     if (saved.error) throw new Error('Storage unavailable');
-    return reply({ kind: 'ai', analysis, reviewId, explanation: result.explanation });
+    return reply({
+      kind: 'ai',
+      analysis,
+      reviewId,
+      explanation: explanationForClient(result.explanation, !snapshot.sleepGrouping)
+    });
   } catch (error) {
     await client.from('wearable_reviews').update({ status: 'failed' }).eq('id', reviewId).eq('status', 'running');
     const zeroRetentionUnavailable =

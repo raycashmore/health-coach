@@ -71,6 +71,7 @@ function stepsOnlyRead(blocked: string[] = []) {
     snapshot: {
       timeZone: 'UTC',
       completedBefore,
+      sleepGrouping: 'next-wake-day',
       syncedAt: now.toISOString(),
       days: Array.from({ length: 21 }, (_, index) => ({
         date: shiftDate(completedBefore, index - 21),
@@ -107,6 +108,29 @@ it('shows a rejected explanation beside its action and leaves the calculated evi
   expect(labels).toContain('5,000 → 5,000 a day');
   expect(mocks.read).toHaveBeenCalledOnce();
   expect(mocks.fetch).toHaveBeenCalledOnce();
+});
+
+it('shows a concise explanation without requiring a caveat or follow-up question', async () => {
+  mocks.read.mockResolvedValue(stepsOnlyRead());
+  mocks.session.mockResolvedValue({ data: { session: { access_token: 'test-only' } } });
+  mocks.fetch.mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        kind: 'ai',
+        reviewId: 'example-review',
+        explanation: {
+          observation: 'Recorded steps were steady.',
+          evidenceIds: ['steps'],
+          uncertainty: null,
+          contextQuestion: null
+        }
+      })
+    )
+  );
+  await act(async () => root.render(<DailyGuidanceScreen />));
+  await press('Explain with AI');
+  expect(texts()).toContain('Recorded steps were steady.');
+  expect(root.container.queryAll((node) => node.props.role === 'alert')).toHaveLength(0);
 });
 
 it('keeps coverage detail one step away behind the sources disclosure', async () => {

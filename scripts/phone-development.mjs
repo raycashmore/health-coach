@@ -12,9 +12,11 @@ import {
   writePrivateEnvironment
 } from './development-environment.mjs';
 import { runPrivateCommand } from './private-command.mjs';
+import { createPhoneRestartControl, requestPhoneRestart } from './phone-restart.mjs';
 
 const ports = [8081, 54321, 3000];
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const restartSocket = resolve(projectRoot, '.scratch/dev-phone/restart.sock');
 
 export function selectDevice(output, requested) {
   const devices = output
@@ -137,6 +139,7 @@ export async function phoneDevelopment({ start, requestedDevice }) {
   const children = [];
   const helpers = [];
   let stopping = false;
+  let control;
   const stop = () => {
     for (const child of [...children, ...helpers]) {
       if (child.exitCode === null) {
@@ -199,6 +202,15 @@ export async function phoneDevelopment({ start, requestedDevice }) {
         NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`
       });
     }
+    // A stack that reused either server must not stop or take ownership of it.
+    if (states.web !== 'ready' && states.metro !== 'ready') {
+      control = await createPhoneRestartControl(restartSocket, () => {
+        stopping = true;
+        stop();
+        console.log('Phone development restart requested; stopping managed servers.');
+        return true;
+      });
+    }
     // Metro strips types without checking them, so a watching tsc reports mobile type errors on every run.
     launch(
       'typecheck',
@@ -246,17 +258,39 @@ export async function phoneDevelopment({ start, requestedDevice }) {
     if (!stopping) throw new Error('A development server exited. Inspect the private .scratch/dev-phone logs.');
   } finally {
     stop();
+    if (control) await new Promise((resolve) => control.close(resolve));
     process.removeListener('SIGINT', onSignal);
     process.removeListener('SIGTERM', onSignal);
   }
 }
 
+export async function restartPhoneDevelopment(requestedDevice) {
+  selectDevice(runPrivateCommand('adb', ['devices']), requestedDevice);
+  await requestPhoneRestart(restartSocket);
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    const states = await serviceStates();
+    if (states.web === 'unreachable' && states.metro === 'unreachable') {
+      await phoneDevelopment({ start: true, requestedDevice });
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error('Managed servers did not stop in time. Other services were left untouched.');
+}
+
 if (isMain(import.meta.url)) {
   try {
     const { values } = parseArgs({
-      options: { start: { type: 'boolean', default: false }, device: { type: 'string' } }
+      options: {
+        start: { type: 'boolean', default: false },
+        restart: { type: 'boolean', default: false },
+        device: { type: 'string' }
+      }
     });
-    await phoneDevelopment({ start: values.start, requestedDevice: values.device });
+    if (values.restart && values.start) throw new Error('Choose either --start or --restart.');
+    if (values.restart) await restartPhoneDevelopment(values.device);
+    else await phoneDevelopment({ start: values.start, requestedDevice: values.device });
   } catch (error) {
     console.error(
       error instanceof Error ? error.message : 'Phone setup failed. Private command output was suppressed.'
