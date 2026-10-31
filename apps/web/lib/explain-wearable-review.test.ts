@@ -64,7 +64,7 @@ describe('bounded model explanation', () => {
     expect(prompt).toContain('baselineMean');
     expect(prompt).not.toContain('example.private-origin');
     expect(prompt).toContain('originsChanged');
-    expect(prompt).toContain('explicitly state that source or priority changes');
+    expect(prompt).toContain('source or priority changes may affect');
     expect(provider.doGenerateCalls).toHaveLength(1);
     expect(provider.doGenerateCalls[0]).toMatchObject({
       maxOutputTokens: 2048,
@@ -75,6 +75,11 @@ describe('bounded model explanation', () => {
       }
     });
     expect(provider.doGenerateCalls[0]?.providerOptions?.gateway).not.toHaveProperty('zeroDataRetention');
+  });
+  it('accepts a concise response without an unnecessary caveat or question', async () => {
+    const concise = { ...explanation, uncertainty: null, contextQuestion: null };
+    const steadySources = { ...input, coverage: input.coverage.map((item) => ({ ...item, originsChanged: false })) };
+    expect((await explainWearableReview(steadySources, model(concise))).explanation).toEqual(concise);
   });
   it('rejects model output referencing a signal that was not supplied', async () => {
     await expect(

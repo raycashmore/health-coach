@@ -263,10 +263,14 @@ export function DailyGuidanceScreen() {
             <Text style={typography.context}>Your question: {shownExplanation.question}</Text>
           ) : null}
           <Text style={typography.body}>{shownExplanation.content.observation}</Text>
-          <Text style={typography.note}>{shownExplanation.content.uncertainty}</Text>
-          <View style={styles.prompt}>
-            <Text style={typography.prompt}>{shownExplanation.content.contextQuestion}</Text>
-          </View>
+          {shownExplanation.content.uncertainty ? (
+            <Text style={typography.note}>{shownExplanation.content.uncertainty}</Text>
+          ) : null}
+          {shownExplanation.content.contextQuestion ? (
+            <View style={styles.prompt}>
+              <Text style={typography.prompt}>{shownExplanation.content.contextQuestion}</Text>
+            </View>
+          ) : null}
           <RatingButtons disabled={busy} onRate={(judgement) => void rate(judgement)} />
           {feedbackLocation === 'rating' ? feedback : null}
         </View>

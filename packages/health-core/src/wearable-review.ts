@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const wearableCalculationVersion = '2';
-export const wearablePromptVersion = '4';
+export const wearablePromptVersion = '5';
 export const wearableMetrics = ['steps', 'sleepMinutes'] as const;
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const measurementSchema = z.object({
@@ -182,8 +182,8 @@ export function buildWearableReview(value: unknown, asOf = new Date()): Wearable
 export const wearableExplanationSchema = z.object({
   observation: z.string().min(1).max(1200),
   evidenceIds: z.array(z.enum(wearableMetrics)).min(1).max(2),
-  uncertainty: z.string().min(1).max(600),
-  contextQuestion: z.string().min(1).max(300)
+  uncertainty: z.string().min(1).max(600).nullable(),
+  contextQuestion: z.string().min(1).max(300).nullable()
 });
 export type WearableExplanation = z.infer<typeof wearableExplanationSchema>;
 
