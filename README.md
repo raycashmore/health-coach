@@ -118,11 +118,16 @@ Do not enable content-capturing developer tools against private records without 
 Keep cases and outputs in an ignored private location. `pnpm eval:wearable:local <path>` reads a JSON array of cases;
 each case has `snapshot` (the wearable snapshot contract), `asOf` (the original review timestamp), `expectedStatus`
 (`change`, `no-change` or `insufficient-data`), `expectedEvidenceIds` (`steps` and/or `sleepMinutes`), and optionally
-`explanation` (a captured structured model response). The snapshot's sync time must be within one hour of `asOf`, and
-its days must end before that date in its captured timezone. Replays cannot include future days.
+`explanation` (a captured structured model response) and `ownerRating` (`useful`, `not-useful` or `concerning`). The
+snapshot's sync time must be within one hour of `asOf`, and its days must end before that date in its captured
+timezone. Replays cannot include future days.
 
-The command makes no model calls and prints aggregate pass counts only. It checks comparison outcomes, evidence
-availability and explanation structure/references; it does not grade clinical accuracy or semantic groundedness.
+The command makes no model calls and prints aggregate counts only. It checks comparison outcomes, evidence
+availability and explanation structure/references, then scores each explanation for ungrounded numbers, sleep written
+as raw minutes, exposed display thresholds, unneeded caveats or disclaimers, and out-of-scope claims. A flagged
+explanation fails the run; counts are also split by owner rating so scorer sensitivity can be compared with the
+owner's judgement. These are pattern checks: passing them does not grade clinical accuracy, semantic groundedness or
+usefulness.
 Use the same private cases before/after prompt or model changes, with owner review of factual support, uncertainty,
 appropriate abstention and usefulness. No private case content belongs in Git.
 
