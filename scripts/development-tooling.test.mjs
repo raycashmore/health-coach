@@ -10,6 +10,7 @@ import {
   symlinkSync,
   writeFileSync
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -218,43 +219,70 @@ test('model smoke requires explicit paid opt-in and returns only metadata from s
   assert.equal(JSON.stringify(report).includes('PRIVATE_OUTPUT_SENTINEL'), false);
 });
 
-test('wearable evaluation replays a legacy calendar-day snapshot', () => {
+function legacyReplayCase(extra = {}) {
+  const start = new Date('2026-10-07T00:00:00Z');
+  const days = Array.from({ length: 21 }, (_, index) => ({
+    date: new Date(start.getTime() + index * 86400000).toISOString().slice(0, 10),
+    steps: { value: 5000, origins: ['example.source'] },
+    sleepMinutes: { value: 420, origins: ['example.source'] }
+  }));
+  return {
+    snapshot: { timeZone: 'UTC', completedBefore: '2026-10-28', syncedAt: '2026-10-28T12:00:00Z', days },
+    asOf: '2026-10-28T12:00:00Z',
+    expectedStatus: 'no-change',
+    expectedEvidenceIds: ['steps', 'sleepMinutes'],
+    ...extra
+  };
+}
+
+function withReplayCases(cases, run) {
   const directory = mkdtempSync(resolve(tmpdir(), 'health-coach-replay-'));
   try {
     const path = resolve(directory, 'cases.json');
-    const start = new Date('2026-10-07T00:00:00Z');
-    const days = Array.from({ length: 21 }, (_, index) => ({
-      date: new Date(start.getTime() + index * 86400000).toISOString().slice(0, 10),
-      steps: { value: 5000, origins: ['example.source'] },
-      sleepMinutes: { value: 420, origins: ['example.source'] }
-    }));
-    writeFileSync(
-      path,
-      JSON.stringify([
-        {
-          snapshot: { timeZone: 'UTC', completedBefore: '2026-10-28', syncedAt: '2026-10-28T12:00:00Z', days },
-          asOf: '2026-10-28T12:00:00Z',
-          expectedStatus: 'no-change',
-          expectedEvidenceIds: ['steps', 'sleepMinutes']
-        }
-      ])
-    );
+    writeFileSync(path, JSON.stringify(cases));
+    return run(path);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+test('wearable evaluation replays a legacy calendar-day snapshot', () => {
+  withReplayCases([legacyReplayCase()], (path) => {
     const output = runPrivateCommand(process.execPath, [
       '--import',
       'tsx',
       'scripts/evaluate-wearable-review.ts',
       path
     ]);
-    assert.deepEqual(JSON.parse(output), {
+    assert.deepEqual((({ failureCounts, byRating, ...counts }) => counts)(JSON.parse(output)), {
       caseCount: 1,
       statusPasses: 1,
       retrievalPasses: 1,
       explanationCount: 0,
-      explanationPasses: 0
+      explanationPasses: 0,
+      flaggedExplanations: 0
     });
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
+  });
+});
+
+test('wearable evaluation fails a flagged explanation and prints counts without its content', () => {
+  const explanation = {
+    observation: 'PRIVATE_OUTPUT_SENTINEL averaged 420 minutes of sleep.',
+    evidenceIds: ['sleepMinutes'],
+    uncertainty: null,
+    contextQuestion: null
+  };
+  withReplayCases([legacyReplayCase({ explanation, ownerRating: 'not-useful' })], (path) => {
+    const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/evaluate-wearable-review.ts', path], {
+      encoding: 'utf8'
+    });
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout.includes('PRIVATE_OUTPUT_SENTINEL'), false);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.flaggedExplanations, 1);
+    assert.equal(report.failureCounts['sleep-in-raw-minutes'], 1);
+    assert.deepEqual(report.byRating['not-useful'], { explanations: 1, flagged: 1 });
+  });
 });
 
 test('catalog discovery considers release order rather than a hard-coded shortlist', () => {
