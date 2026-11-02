@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { embeddingEndpoint, loadCloudCredentials, selectProject } from './retrieval/cloud-config.mjs';
 import { sectionMarkdown } from './retrieval/prepare-markdown.mjs';
 import { corpusVersion, notes, questions } from './retrieval/synthetic-corpus.mjs';
 import { embeddingModel, pricePerMillion, withEmbeddingBudget } from './retrieval/embedding-budget.mjs';
@@ -39,11 +40,12 @@ async function request(url, headers, body, method = 'POST') {
 async function main() {
   if (!process.argv.includes('--cloud'))
     throw new Error('Use --cloud with the approved project and private credential files');
-  const project = process.env.HC_RETRIEVAL_PROJECT_REF;
-  if (!/^[a-z]{20}$/.test(project ?? '')) throw new Error('Set verified HC_RETRIEVAL_PROJECT_REF');
-  const token = (await readFile(process.env.HC_SUPABASE_TOKEN_FILE, 'utf8')).trim();
-  const openAIKey = (await readFile(process.env.HC_OPENAI_KEY_FILE, 'utf8')).trim();
-  const management = { Authorization: `Bearer ${token}` };
+  const credentials = await loadCloudCredentials(
+    process.env.HC_RETRIEVAL_CREDENTIALS_FILE ?? path.join(directory, 'credentials.env')
+  );
+  const management = { Authorization: `Bearer ${credentials.managementToken}` };
+  const projects = await request('https://api.supabase.com/v1/projects', management, undefined, 'GET');
+  const project = selectProject(projects, process.env.HC_RETRIEVAL_PROJECT_REF);
   const projectUrl = `https://api.supabase.com/v1/projects/${project}`;
   const info = await request(projectUrl, management, undefined, 'GET');
   if (info.id !== project || info.status !== 'ACTIVE_HEALTHY')
@@ -101,9 +103,9 @@ async function main() {
     async function embed(inputs) {
       const result = await withEmbeddingBudget(directory, inputs, () =>
         request(
-          'https://api.openai.com/v1/embeddings',
-          { Authorization: `Bearer ${openAIKey}` },
-          { model: embeddingModel, input: inputs, encoding_format: 'float' }
+          embeddingEndpoint,
+          { Authorization: `Bearer ${credentials.gatewayKey}` },
+          { model: embeddingModel, input: inputs, dimensions: 1536, encoding_format: 'float' }
         )
       );
       if (result.data.length !== inputs.length) throw new Error('Embedding count mismatch');
@@ -260,6 +262,7 @@ async function main() {
       corpusVersion,
       generatedAt: new Date().toISOString(),
       model: embeddingModel,
+      embeddingRoute: 'Vercel AI Gateway (routing included in embedding timing)',
       documents: notes.length,
       sections: sections.length,
       queryCount: questions.length,

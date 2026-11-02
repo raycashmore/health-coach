@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 
-export const embeddingModel = 'text-embedding-3-small';
-export const pricePerMillion = 0.02; // Official OpenAI model page verified 3 Nov 2026.
+export const embeddingModel = 'openai/text-embedding-3-small';
+export const pricePerMillion = 0.02; // OpenAI and Vercel model pricing verified 3 Nov 2026.
 export const budgetUsd = 1;
 
 export function reserveCost(inputs) {

@@ -55,19 +55,23 @@ the same judged questions, timing each stage separately.
 The owner approved a synthetic dataset in the existing Supabase project and
 OpenAI embeddings with a US$1 total embedding budget. The harness accepts only
 its checked-in workshop fixtures, never a vault path or prepared private snapshot.
-It uses `text-embedding-3-small` (1,536 dimensions) and a persisted conservative
+It uses `openai/text-embedding-3-small` through Vercel AI Gateway (1,536 dimensions) and a persisted conservative
 budget reservation before every call. Reservations survive uncertain failures;
 measured API tokens are recorded separately. Do not delete/reset the budget
 ledger between runs. Concurrent embedding writers fail closed.
 
 ```sh
-HC_RETRIEVAL_PROJECT_REF=verified-project-reference \
-HC_SUPABASE_TOKEN_FILE=/private/path/to/management-token \
-HC_OPENAI_KEY_FILE=/private/path/to/openai-key \
 pnpm retrieval:experiment --cloud
 ```
 
-Credential files come from secure secret entry, never tracked files or chat.
+Credentials are loaded from ignored `private-data/retrieval-cloud/credentials.env`:
+`AI_GATEWAY_API_KEY` and `SUPABASE_ACCESS_TOKEN`. The latter is a Supabase
+personal management token, not a project key. Never print or commit these values.
+Override the credential file path with `HC_RETRIEVAL_CREDENTIALS_FILE` if needed.
+The runner selects the uniquely named Health Coach project; ambiguous selection
+requires the verified reference in `HC_RETRIEVAL_PROJECT_REF`. A direct OpenAI
+key is not needed. Gateway routing is included in embedding latency.
+
 The command verifies the active project, installs only the namespaced experiment
 SQL in `scripts/retrieval/experiment.sql`, creates two temporary synthetic sign-in
 accounts and tests authenticated PostgREST retrieval. It does not apply the app's
@@ -100,7 +104,7 @@ Results, sample timings, usage and cleanup state go to ignored
 input tokens](https://developers.openai.com/api/docs/models/text-embedding-3-small),
 with UTF-8 bytes plus overhead as a conservative token bound and a twofold price
 margin. This guard covers this harness's calls, not other callers on the key.
-[Embedding API reference](https://developers.openai.com/api/reference/resources/embeddings/methods/create).
+[Gateway embedding API reference](https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions/embeddings).
 
 A hosted comparison from the Mac establishes cloud retrieval behavior. It does
 not establish an installed mobile flow or operation with the Mac switched off.

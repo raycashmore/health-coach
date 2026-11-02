@@ -98,3 +98,28 @@ test('only one run can own the recovery journal and creation intent is persisted
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('cloud config reads the local Gateway credentials and refuses ambiguous project selection', async () => {
+  const { loadCloudCredentials, selectProject, embeddingEndpoint } = await import('./retrieval/cloud-config.mjs');
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'retrieval-config-'));
+  try {
+    const filename = path.join(dir, 'credentials.env');
+    await writeFile(
+      filename,
+      'AI_GATEWAY_API_KEY="placeholder-gateway"\nSUPABASE_ACCESS_TOKEN=placeholder-management\n'
+    );
+    assert.deepEqual(await loadCloudCredentials(filename), {
+      gatewayKey: 'placeholder-gateway',
+      managementToken: 'placeholder-management'
+    });
+    assert.equal(embeddingEndpoint, 'https://ai-gateway.vercel.sh/v1/embeddings');
+    const project = { id: 'a'.repeat(20), name: 'Health coach' };
+    assert.equal(selectProject([project]), project.id);
+    assert.throws(() => selectProject([project, { ...project, id: 'b'.repeat(20) }]));
+    assert.equal(selectProject([project], project.id), project.id);
+    await writeFile(filename, 'AI_GATEWAY_API_KEY=\nSUPABASE_ACCESS_TOKEN=\n');
+    await assert.rejects(loadCloudCredentials(filename));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
