@@ -10,6 +10,7 @@ import {
   finishRequest,
   runMarker,
   liveEnvelope,
+  modelPrompt,
   requestReservation
 } from './live-budget.mjs';
 import { fixedEvidence } from './control.mjs';
@@ -18,9 +19,13 @@ import { demoCases } from './fixtures.mjs';
 export function request(mode = 'agent', id = 'reference') {
   return {
     method: 'POST',
-    headers: { 'ai-language-model-id': liveEnvelope.model, 'ai-language-model-streaming': 'false' },
+    headers: {
+      'ai-language-model-id': liveEnvelope.model,
+      'ai-language-model-streaming': 'false',
+      'x-hc-spike-run': `${mode}:${id}`
+    },
     body: JSON.stringify({
-      prompt: [{ role: 'user', content: [{ type: 'text', text: runMarker(mode, id) }] }],
+      prompt: [{ role: 'user', content: [{ type: 'text', text: demoCases.find((item) => item.id === id).query }] }],
       maxOutputTokens: 1000,
       providerOptions: { gateway: { only: ['openai'] } }
     })
@@ -60,7 +65,7 @@ test('real HTTP boundary rejects alternate models, hosts, routing, tools and inp
   assert.throws(() =>
     validateRequest(liveEnvelope.endpoint, {
       ...valid,
-      body: valid.body.replace('SPIKE_RUN', 'x'.repeat(36000) + 'SPIKE_RUN')
+      body: valid.body.replace('For parcel packing', 'x'.repeat(36000) + 'For parcel packing')
     })
   );
 });
@@ -100,4 +105,13 @@ test('fixed control reads all five returned hits inside the same six-call eviden
     assert.equal(result.trace.length, result.trace[0].output.sources.length + 1);
     assert.ok(result.state.calls <= 6 && result.state.bytes <= 24000);
   }
+});
+
+test('run labels are bound outside the model-visible prompt and never forwarded as question text', () => {
+  const original = [{ role: 'user', content: [{ type: 'text', text: runMarker('agent', 'paraphrase') }] }];
+  const prepared = modelPrompt(original);
+  assert.equal(prepared.run.key, 'agent:paraphrase');
+  assert.equal(prepared.prompt[0].content[0].text, demoCases[1].query);
+  assert.ok(!JSON.stringify(prepared.prompt).includes('SPIKE_RUN'));
+  assert.ok(JSON.stringify(original).includes('SPIKE_RUN'));
 });

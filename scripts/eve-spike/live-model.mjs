@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parseEnv } from 'node:util';
 import { createGateway, wrapLanguageModel, simulateStreamingMiddleware } from 'ai';
 import { fixtureTransport } from './fixture-transport.mjs';
-import { liveEnvelope, validateRequest, reserveRequest, finishRequest } from './live-budget.mjs';
+import { liveEnvelope, modelPrompt, validateRequest, reserveRequest, finishRequest } from './live-budget.mjs';
 
 function terminal(reason) {
   // No cause containing a retryable Gateway error: Eve treats HTTP 400 as terminal.
@@ -15,8 +15,11 @@ export function boundedFetch({ ledgerFile, transport = fetch }) {
     try {
       const request = validateRequest(url, init);
       index = await reserveRequest(ledgerFile, request);
+      const outboundHeaders = new Headers(init.headers);
+      outboundHeaders.delete('x-hc-spike-run');
       const response = await transport(url, {
         ...init,
+        headers: outboundHeaders,
         redirect: 'error',
         signal: AbortSignal.any([...(init.signal ? [init.signal] : []), AbortSignal.timeout(30000)])
       });
@@ -89,8 +92,11 @@ export async function liveModel({
       {
         specificationVersion: 'v4',
         transformParams({ params }) {
+          const prepared = modelPrompt(params.prompt);
           return {
             ...params,
+            prompt: prepared.prompt,
+            headers: { ...params.headers, 'x-hc-spike-run': prepared.run.key },
             maxOutputTokens: liveEnvelope.outputTokens,
             providerOptions: { gateway: { only: ['openai'] } },
             ...(!toolsAvailable ? { tools: [], toolChoice: { type: 'none' } } : {})

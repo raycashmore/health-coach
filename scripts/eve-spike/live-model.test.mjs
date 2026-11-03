@@ -25,6 +25,8 @@ for (const streamed of [false, true])
       ...config,
       transport: (...args) => {
         calls++;
+        assert.ok(!args[1].body.includes('SPIKE_RUN'));
+        assert.ok(!new Headers(args[1].headers).has('x-hc-spike-run'));
         return fixtureTransport(...args);
       },
       toolsAvailable: false

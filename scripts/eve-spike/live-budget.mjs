@@ -35,6 +35,41 @@ export function identifyRun(prompt) {
   return { key: `${match[1]}:${match[2]}`, mode: match[1], caseId: match[2] };
 }
 
+export function modelPrompt(prompt) {
+  const run = identifyRun(prompt);
+  return {
+    run,
+    prompt: prompt.map((message) =>
+      message.role !== 'user'
+        ? message
+        : {
+            ...message,
+            content:
+              typeof message.content === 'string'
+                ? message.content.replace(/^SPIKE_RUN [^\n]+\n/, '')
+                : message.content.map((part) =>
+                    part.type !== 'text' ? part : { ...part, text: part.text.replace(/^SPIKE_RUN [^\n]+\n/, '') }
+                  )
+          }
+    )
+  };
+}
+function boundRun(headers, prompt) {
+  const match = /^(agent|fixed):([a-z]+)$/.exec(headers.get('x-hc-spike-run') ?? '');
+  const item = match && demoCases.find((item) => item.id === match[2]);
+  if (!item) throw new Error('Unknown bound run');
+  const texts = prompt
+    .filter((message) => message.role === 'user')
+    .flatMap((message) =>
+      typeof message.content === 'string'
+        ? [message.content]
+        : message.content.filter((part) => part.type === 'text').map((part) => part.text)
+    );
+  if (!texts.some((text) => text.startsWith(item.query)) || JSON.stringify(prompt).includes('SPIKE_RUN '))
+    throw new Error('Run metadata leaked or question missing');
+  return { key: `${match[1]}:${item.id}`, mode: match[1], caseId: item.id };
+}
+
 export function validateRequest(url, init) {
   const headers = new Headers(init.headers);
   if (
@@ -62,7 +97,7 @@ export function validateRequest(url, init) {
     (body.tools ?? []).some((tool) => tool.type !== 'function')
   )
     throw new Error('Tool capability not allowed');
-  const run = identifyRun(body.prompt);
+  const run = boundRun(headers, body.prompt);
   if (run.mode === 'fixed' && names.length) throw new Error('Fixed control must have no model tools');
   return { ...run, inputBound, fingerprint: createHash('sha256').update(init.body).digest('hex') };
 }
