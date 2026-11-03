@@ -6,8 +6,17 @@ import { createGatewayComparison, verifyGatewayCatalog } from './investigation/g
 
 // Exact opt-in, a fresh ignored output directory and a supplied existing key are required.
 // This entry point never creates a credential or changes a remote budget.
-if (process.argv.slice(2).join(' ') !== '--allow-usd 1.28') {
-  console.error('Paid execution requires --allow-usd 1.28 and explicit owner authority.');
+const allowanceText = process.argv[3];
+const allowanceUsd = Number(allowanceText);
+if (
+  process.argv.length !== 4 ||
+  process.argv[2] !== '--allow-usd' ||
+  !/^\d+\.\d{2}$/.test(allowanceText ?? '') ||
+  !Number.isFinite(allowanceUsd) ||
+  allowanceUsd <= 0 ||
+  allowanceUsd > 1.28
+) {
+  console.error('Paid execution requires --allow-usd with an owner-approved amount up to 1.28 (two decimals).');
   process.exitCode = 1;
 } else if (!process.env.AI_GATEWAY_API_KEY) {
   console.error('Supply the existing Gateway key through the environment.');
@@ -22,7 +31,7 @@ if (process.argv.slice(2).join(' ') !== '--allow-usd 1.28') {
     try {
       const comparison = createGatewayComparison({
         apiKey: process.env.AI_GATEWAY_API_KEY,
-        allowanceUsd: 1.28,
+        allowanceUsd,
         record: async (event) => {
           await ledger.writeFile(`${JSON.stringify(event)}\n`);
           await ledger.sync();

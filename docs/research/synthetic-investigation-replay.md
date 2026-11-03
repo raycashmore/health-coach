@@ -32,7 +32,7 @@ schema, note window and repair errors. It receives no case ID or expected label.
   and date support, source-change evidence, note-window support, abstention
   searches and sleep-specific restraint. It renders only validated answers.
 - `run.mjs` runs either tool-selected requests or the fixed evidence planner,
-  with one repair, request/tool/byte/deadline limits and deterministic fallback.
+  with one repair, request/tool/evidence/deadline limits and deterministic fallback.
 - `replay.mjs` supplies authored callback responses for software verification.
   Its semantic query is deliberately written by a human; it demonstrates the
   seam where a model might add evidence, not model query-reformulation skill.
@@ -46,8 +46,10 @@ It reads every distinct hit, within the same six-tool budget.
 
 The local runner enforces six requests, six tool calls, a 60-second deadline,
 6,000 bytes per result and 16,000 cumulative evidence bytes. Its conservative
-request-envelope and response-byte checks fit inside the design's 8k/1k token
-caps for these ASCII replay fixtures. They are **not provider token accounting**.
+request-envelope check and offline response-byte check fit inside the design's
+8k/1k token caps for these ASCII replay fixtures. Paid responses use the Gateway
+adapter's actual output-token check instead of the offline byte approximation.
+The offline checks are **not provider token accounting**.
 The runner delegates paid requests and usage accounting to the separate Gateway
 adapter below.
 `costUsd: 0` means offline execution; elapsed time is local replay time, not
@@ -73,12 +75,13 @@ Concerning and comprehension ratings. Apply the design's decision rule, preferri
 the control on ties. Broader private evaluation, Android integration, durable
 memory and production framework adoption remain excluded.
 
-## Prepared paid command — not executed
+## Paid command and authorization boundary
 
 The Vercel AI Gateway skill and current official documentation informed
 `gateway.mjs`; no extra SDK dependency is required. Its Anthropic Messages
 transport offers the four native tools plus a structured finish tool, low effort,
-one tool per response, and no client retries. The fixed arm exposes only finish.
+one tool per response, and no client retries. The fixed arm exposes only finish. Native parallel tool use is disabled through
+`tool_choice`, rather than relying on the one-call instruction alone.
 It does not send case IDs, expected labels or arm names to the model.
 
 The public Gateway catalog checked 3 November 2026 listed
@@ -95,13 +98,15 @@ before sending generation, conservatively including the five-minute cache-write
 premium. This is stricter than the design's US$0.026 base-rate estimate. Measured
 usage replaces the reservation only after durable settlement. An unknown outcome,
 unexpected usage or provider failure stops the comparison and holds the full
-reservation. No automatic retry occurs. The US$0.16 per-run cap still applies;
+reservation. A fully settled model output limit ends only that run; the known
+charge is recorded and the other unattempted runs may continue. No automatic retry occurs. The US$0.16 per-run cap still applies;
 an expensive run may stop before its sixth request to preserve that cap. Eight
 runs therefore require at most US$1.28 of reserved/measured token charges under
 the verified rate contract, without paid external search or other tools.
 
 The CLI requires an existing `AI_GATEWAY_API_KEY` supplied through the environment
-and exact `--allow-usd 1.28` opt-in. It creates a fresh ignored directory under
+and an explicit `--allow-usd` opt-in with a positive two-decimal amount at most
+US$1.28. A smaller approved total still preserves the US$0.16 per-run cap. It creates a fresh ignored directory under
 `outputs/` with a synced append-only spend ledger and synthetic results, both
 mode 0600 inside a 0700 directory. No key or remote budget is created or changed.
 An interrupted run must be inspected before any separate attempt; a fresh
@@ -116,10 +121,50 @@ node --import tsx scripts/run-investigation-comparison.mjs --allow-usd 1.28
 Mocked transport checks cover both arms, preflight counting, persistent reservation,
 unknown paid outcomes, token/usage limits, per-run caps, aborts and refusal without
 opt-in. These prove local controls, not live provider behavior or account billing.
-A real run remains unexecuted and must collect the manual rubric and owner ratings.
+The first authorized run is recorded below; another run requires separate owner
+authority and must collect the manual rubric and owner ratings.
 
 Primary references checked:
 
 - [Gateway catalog and discovery](https://vercel.com/docs/ai-gateway/models-and-providers)
 - [Anthropic Messages API and token counting](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api)
 - [Native tool calling](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api/tool-calling)
+
+## First live attempt — 3 November 2026
+
+The owner approved one eight-run comparison up to US$1.28. Every arm/case was
+attempted once. All paid requests settled; calculated token charges totalled
+US$0.138932. This is usage-times-catalog-rate accounting, not a reconciled Gateway
+invoice. Only the two no-meaningful-change answers validated. The six investigation
+answers were incomplete, so the run cannot establish agent value or justify a
+product direction change. Manual owner usefulness/comprehension ratings remain
+unverified; no ratings are inferred from software success or failure.
+
+Live execution exposed harness problems not covered by the original mocks:
+
+- A paid response reporting fewer than 1,000 output tokens could exceed the
+  runner's offline 1,000-byte approximation and be rejected before validation.
+- The API returned multiple tool calls despite a prompt asking for one. The
+  adapter rejected that response and spent its sole repair on formatting.
+- A model output stop with settled charges was treated like uncertain billing,
+  halting the first attempt. A guarded local continuation checked every ledger
+  entry, refused any unsettled charge, reserved headroom for the seven remaining
+  runs and never repeated the first arm. Model-visible inputs and limits were
+  unchanged during continuation; only host stop handling and diagnostic metadata
+  changed. This split execution is another reason to avoid a quality comparison.
+
+The first arm's full provider stop metadata was not retained. Later entries show
+both an actual `max_tokens` stop and complete native answer calls rejected by the
+byte check. No unsupported claim is made about the first arm's exact stop reason.
+The raw rejected answers were not retained; they cannot be retrospectively rated.
+
+Regression tests now cover paid responses over 1,000 bytes within the provider
+output-token cap, request-level parallel disabling, settled output stops continuing
+other arms, and smaller explicit total allowances. The model prompt and the
+1,000-token cap are unchanged. A genuine truncation can still occur; fixing the
+harness does not prove that cap will be sufficient for every answer.
+
+Raw synthetic results, generation IDs, spend ledger and the one-shot recovery
+script remain in the ignored `outputs/investigation-1793706005328/` directory.
+Linear RAY-245 owns the current verdict and any new spending grant. The first
+comparison's authority is consumed; no corrected rerun is authorized by this file.

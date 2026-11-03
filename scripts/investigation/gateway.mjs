@@ -30,7 +30,15 @@ export async function verifyGatewayCatalog(transport = fetch) {
 // record must durably persist each event before resolving. Uncertain paid outcomes
 // retain the full reservation and stop the comparison rather than retrying.
 export function createGatewayComparison({ apiKey, allowanceUsd, record, transport = fetch }) {
-  if (!apiKey || allowanceUsd !== 1.28 || typeof record !== 'function') throw new Error('paid-opt-in-required');
+  const allowanceMicroUsd = Math.round(allowanceUsd * 1e6);
+  if (
+    !apiKey ||
+    !Number.isFinite(allowanceUsd) ||
+    allowanceUsd <= 0 ||
+    allowanceUsd > 1.28 ||
+    typeof record !== 'function'
+  )
+    throw new Error('paid-opt-in-required');
   const runs = new Map();
   let total = 0;
   let stopped = false;
@@ -45,7 +53,7 @@ export function createGatewayComparison({ apiKey, allowanceUsd, record, transpor
         signal.aborted ||
         run.requests >= 6 ||
         run.spent + reservation > runLimit ||
-        total + reservation > comparisonLimit
+        total + reservation > Math.min(comparisonLimit, allowanceMicroUsd)
       )
         throw new Error('generation-budget-unavailable');
       const tools = context.toolsAllowed
@@ -66,6 +74,7 @@ export function createGatewayComparison({ apiKey, allowanceUsd, record, transpor
         system: `${instructions} Call exactly one tool. Use finish_investigation for the final answer.`,
         messages: [{ role: 'user', content: JSON.stringify(data) }],
         tools,
+        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
         thinking: { type: 'adaptive' },
         output_config: { effort: 'low' },
         max_tokens: 1000,
@@ -132,7 +141,11 @@ export function createGatewayComparison({ apiKey, allowanceUsd, record, transpor
           outputTokens: output,
           costMicroUsd: cost,
           elapsedMs: Date.now() - started,
-          generationId: result.id ?? null
+          generationId: result.id ?? null,
+          finishReason: result.stop_reason ?? null,
+          toolNames: Array.isArray(result.content)
+            ? result.content.filter((part) => part.type === 'tool_use').map((part) => part.name)
+            : []
         };
         await record(structuredClone(completed));
         Object.assign(row, completed);
@@ -140,14 +153,16 @@ export function createGatewayComparison({ apiKey, allowanceUsd, record, transpor
         total += cost - reservation;
         settled = true;
         const calls = result.content?.filter((part) => part.type === 'tool_use');
-        if (!['tool_use', 'end_turn'].includes(result.stop_reason)) throw new Error('provider-output-incomplete');
+        if (!['tool_use', 'end_turn'].includes(result.stop_reason)) throw new Error('output-limit');
         // Measured format failures get the runner's one repair, without exposing raw prose.
         if (result.stop_reason !== 'tool_use' || calls?.length !== 1) return { action: 'invalid' };
         const call = calls[0];
         return call.name === 'finish_investigation'
           ? { action: 'answer', answer: call.input }
           : { action: 'tool', name: call.name, input: call.input };
-      } catch {
+      } catch (error) {
+        // A fully settled model stop ends this run; it is not an uncertain bill.
+        if (settled && error instanceof Error && error.message === 'output-limit') throw error;
         stopped = true;
         if (reserved && !settled) await record({ key, status: 'uncertain', heldMicroUsd: reservation }).catch(() => {});
         throw new Error('gateway-request-stopped');

@@ -61,7 +61,7 @@ test('paid entry point refuses missing explicit allowance before any network req
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Paid execution requires/);
   assert.throws(
-    () => createGatewayComparison({ apiKey: 'placeholder', allowanceUsd: 0.16, record: async () => {} }),
+    () => createGatewayComparison({ apiKey: 'placeholder', allowanceUsd: 1.29, record: async () => {} }),
     /paid-opt-in/
   );
 });
@@ -93,6 +93,7 @@ test('mocked provider exercises both arms with measured usage and pre-request du
         .filter((c) => c.url === endpoint)
         .every(
           (c) =>
+            c.body.tool_choice.disable_parallel_tool_use === true &&
             c.body.max_tokens === 1000 &&
             c.body.output_config.effort === 'low' &&
             c.body.providerOptions.gateway.only.join() === 'anthropic'
@@ -258,4 +259,81 @@ test('CLI saves partial evidence and exits with ledger warning after unknown pai
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('a settled model output limit ends only its run and preserves unattempted arms', async () => {
+  const fixture = fixtureTransport();
+  let first = true;
+  const group = comparison(async (url, init) => {
+    const response = await fixture.transport(url, init);
+    if (url === endpoint && first) {
+      first = false;
+      const result = await response.json();
+      return Response.json({
+        ...result,
+        stop_reason: 'max_tokens',
+        usage: { input_tokens: 250, output_tokens: 1000 },
+        content: []
+      });
+    }
+    return response;
+  });
+  const arm = group.requestFor('fixed:no-change');
+  const result = await runInvestigation({
+    fixture: syntheticCase('no-change'),
+    mode: 'fixed',
+    request: arm.request,
+    execution: 'gateway'
+  });
+  assert.equal(result.reason, 'output-limit');
+  assert.equal(group.stopped, false);
+  assert.equal(arm.metrics().costUsd, 0.0105);
+  assert.equal(arm.metrics().usage[0].finishReason, 'max_tokens');
+  const next = group.requestFor('fixed:missing');
+  const nextResult = await runInvestigation({
+    fixture: syntheticCase('missing'),
+    mode: 'fixed',
+    request: next.request,
+    execution: 'gateway'
+  });
+  assert.equal(nextResult.status, 'validated');
+});
+
+test('live answers within the provider token cap are not rejected by the offline byte cap', async () => {
+  const fixture = fixtureTransport({ usage: { input_tokens: 250, output_tokens: 900 } });
+  const group = comparison(async (url, init) => {
+    const response = await fixture.transport(url, init);
+    if (url !== endpoint) return response;
+    const result = await response.json();
+    const answer = result.content[0].input;
+    answer.claims[0].text =
+      'Recorded sleep has no meaningful change.' +
+      ' '.repeat(580) +
+      ' Comparable recent and baseline records are available.';
+    answer.contextQuestion =
+      'Was anything different about the recording setup?' + ' '.repeat(200) + ' Any other context?';
+    assert.ok(Buffer.byteLength(JSON.stringify({ action: 'answer', answer })) > 1000);
+    return Response.json(result);
+  });
+  const arm = group.requestFor('fixed:no-change');
+  const result = await runInvestigation({
+    fixture: syntheticCase('no-change'),
+    mode: 'fixed',
+    request: arm.request,
+    execution: 'gateway'
+  });
+  assert.equal(result.status, 'validated');
+});
+test('a smaller approved total allowance blocks before an extra generation', async () => {
+  const fixture = fixtureTransport();
+  const group = createGatewayComparison({
+    apiKey: 'placeholder',
+    allowanceUsd: 0.03,
+    record: async () => {},
+    transport: fixture.transport
+  });
+  const arm = group.requestFor('agent:source');
+  await arm.request(context, options());
+  await assert.rejects(arm.request(context, options()), /budget-unavailable/);
+  assert.equal(fixture.calls.length, 2);
 });

@@ -97,7 +97,8 @@ export async function runInvestigation({
       requests++;
       const raw = await Promise.race([request(context, { signal: controller.signal }), deadline]);
       if (now() - started >= timeoutMs) return fallback('time-limit');
-      if (Buffer.byteLength(JSON.stringify(raw) ?? '') > 1000) return fallback('output-limit');
+      if (execution === 'offline-replay' && Buffer.byteLength(JSON.stringify(raw) ?? '') > 1000)
+        return fallback('output-limit');
       const parsed = stepSchema.safeParse(raw);
       if (!parsed.success) errors = ['step-schema'];
       else if (parsed.data.action === 'tool') {
@@ -127,7 +128,8 @@ export async function runInvestigation({
       'invalid-tool-input',
       'date-outside-snapshot',
       'invalid-date-range',
-      'time-limit'
+      'time-limit',
+      'output-limit'
     ];
     return fallback(error instanceof Error && reasons.includes(error.message) ? error.message : 'request-failed');
   } finally {
