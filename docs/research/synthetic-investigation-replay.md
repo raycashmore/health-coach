@@ -46,9 +46,10 @@ It reads every distinct hit, within the same six-tool budget.
 
 The local runner enforces six requests, six tool calls, a 60-second deadline,
 6,000 bytes per result and 16,000 cumulative evidence bytes. Its conservative
-request-envelope check and offline response-byte check fit inside the design's
-8k/1k token caps for these ASCII replay fixtures. Paid responses use the Gateway
-adapter's actual output-token check instead of the offline byte approximation.
+offline request-envelope and response-byte checks fit inside the design's
+8k/1k token caps for these ASCII replay fixtures. Paid requests and responses use the Gateway
+adapter's exact token preflight and actual output-token check instead of either
+offline byte approximation.
 The offline checks are **not provider token accounting**.
 The runner delegates paid requests and usage accounting to the separate Gateway
 adapter below.
@@ -168,3 +169,45 @@ Raw synthetic results, generation IDs, spend ledger and the one-shot recovery
 script remain in the ignored `outputs/investigation-1793706005328/` directory.
 Linear RAY-245 owns the current verdict and any new spending grant. The first
 comparison's authority is consumed; no corrected rerun is authorized by this file.
+
+## Corrected live attempt — 3 November 2026
+
+The owner approved one corrected eight-run comparison capped at US$1.14. It ran
+once at commit `22a22ab`, with no host or prompt changes during execution. Its
+24 paid requests all settled. Rate-derived token charges were US$0.242434; the
+two comparisons together cost US$0.381366, below the original US$1.28 ceiling.
+These figures remain token-accounting estimates rather than reconciled invoices.
+
+Both arms produced two authored-label-correct conclusions out of four. The agent
+produced two structurally validated answers; the control produced three, including
+an incorrect unexplained conclusion in the differently worded travel-note case.
+Neither arm found that note. The agent made an unnecessary duplicate comparison
+lookup and day-level requests when sources had not changed. Its two successful
+cases did not establish useful additional evidence over the control.
+
+The run still has important limitations. A remaining offline input-byte guard
+blocked the agent's repairs in the source-change and different-wording cases;
+those failures are partly harness-confounded. The control's source-change answer
+failed validation twice, but the then-current runner retained no error list or
+rejected draft, limiting retrospective diagnosis. The raw run results are
+preserved unchanged in ignored `outputs/investigation-1793706547317/`.
+
+Manual review of the validated answers found search-absence overstatement in the
+agent's missing-evidence answer and misinterpretation of a search-result flag as
+uncertain date coverage in control answers. These are semantic quality failures
+that structural validation did not establish. Owner Useful / Not useful /
+Concerning and comprehension ratings remain unverified, with no ratings inferred.
+
+Local fixes after this run remove the paid input-byte approximation, delegate
+that boundary to the existing exact token preflight, and retain safe validation
+error categories for future diagnosis. A known oversized preflight stops only
+that run without reserving a generation; unknown accounting/transport failures
+still halt the comparison. Regression tests cover these contracts. There has
+been no additional paid call to verify those post-run fixes.
+
+The defensible decision is **agent advantage not demonstrated**, with both
+investigation outputs unsuitable for promotion on this evidence. This is not
+proof that an agent cannot help, or that the control is accepted owner advice.
+Local fixes cannot retrospectively repair the experiment. Linear owns the
+independent acceptance review, negative-result disposition and next grooming
+boundary. No third paid comparison is authorized.

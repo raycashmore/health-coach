@@ -44,6 +44,7 @@ export async function runInvestigation({
   let requests = 0;
   let repaired = false;
   let errors = [];
+  const validationFailures = [];
   let rejectedAnswer = null;
   const fallback = (reason) => ({
     status: 'incomplete',
@@ -63,6 +64,7 @@ export async function runInvestigation({
       evidenceBytes: evidence.bytes,
       elapsedMs: now() - started,
       repair: repaired,
+      validationFailures: structuredClone(validationFailures),
       costUsd: execution === 'offline-replay' ? 0 : null,
       execution
     };
@@ -93,7 +95,8 @@ export async function runInvestigation({
         toolsAllowed: mode === 'agent' && !repaired
       };
       // Conservative byte bound for this offline envelope; paid adapters need exact provider counting.
-      if (Buffer.byteLength(JSON.stringify(context)) + 1000 > 8000) return fallback('input-limit');
+      if (execution === 'offline-replay' && Buffer.byteLength(JSON.stringify(context)) + 1000 > 8000)
+        return fallback('input-limit');
       requests++;
       const raw = await Promise.race([request(context, { signal: controller.signal }), deadline]);
       if (now() - started >= timeoutMs) return fallback('time-limit');
@@ -117,6 +120,7 @@ export async function runInvestigation({
             trace: evidence.trace
           };
       }
+      validationFailures.push([...errors]);
       if (repaired) return fallback('validation-failed');
       repaired = true;
     }
@@ -129,7 +133,8 @@ export async function runInvestigation({
       'date-outside-snapshot',
       'invalid-date-range',
       'time-limit',
-      'output-limit'
+      'output-limit',
+      'input-limit'
     ];
     return fallback(error instanceof Error && reasons.includes(error.message) ? error.message : 'request-failed');
   } finally {

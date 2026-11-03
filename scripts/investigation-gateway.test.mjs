@@ -127,7 +127,7 @@ test('catalog changes fail closed before generation', async () => {
 test('exact token preflight rejects oversized contexts before paid generation', async () => {
   const fixture = fixtureTransport({ count: 7500 });
   const arm = comparison(fixture.transport).requestFor('agent:source');
-  await assert.rejects(arm.request(context, options()), /gateway-request-stopped/);
+  await assert.rejects(arm.request(context, options()), /input-limit/);
   assert.equal(fixture.calls.length, 1);
   assert.equal(arm.metrics().requests, 0);
 });
@@ -336,4 +336,20 @@ test('a smaller approved total allowance blocks before an extra generation', asy
   await arm.request(context, options());
   await assert.rejects(arm.request(context, options()), /budget-unavailable/);
   assert.equal(fixture.calls.length, 2);
+});
+
+test('a known preflight input limit stops only its run with no paid reservation', async () => {
+  const fixture = fixtureTransport({ count: 7500 });
+  const group = comparison(fixture.transport);
+  const arm = group.requestFor('fixed:no-change');
+  const result = await runInvestigation({
+    fixture: syntheticCase('no-change'),
+    mode: 'fixed',
+    request: arm.request,
+    execution: 'gateway'
+  });
+  assert.equal(result.reason, 'input-limit');
+  assert.equal(group.stopped, false);
+  assert.equal(arm.metrics().requests, 0);
+  assert.equal(arm.metrics().costUsd, 0);
 });

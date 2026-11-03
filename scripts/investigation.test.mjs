@@ -118,6 +118,7 @@ test('one repair is accepted, second invalid answer fails closed without partial
   });
   assert.equal(failed.reason, 'validation-failed');
   assert.equal(failed.metrics.requests, 2);
+  assert.deepEqual(failed.metrics.validationFailures, [['answer-schema'], ['answer-schema']]);
   assert.doesNotMatch(failed.text, /DO NOT SHOW/);
 });
 test('coverage stops before invoking request; fixed arm rejects model-selected tools', async () => {
@@ -247,4 +248,36 @@ test('modal may remains valid hedging while May dates require ISO format', () =>
   for (const text of ['Changed on May 18.', 'Changed on 18 May.', 'Changed on May 1.']) {
     assert.ok(validateAnswer(make(text), e).includes('date-format-use-iso'));
   }
+});
+
+test('live input envelopes over the offline byte approximation can reach paid token preflight', async () => {
+  let requests = 0;
+  let repairedEnvelopeBytes = 0;
+  const result = await runInvestigation({
+    fixture: syntheticCase('source'),
+    execution: 'gateway',
+    request: async (context) => {
+      requests++;
+      if (requests === 1) return { action: 'tool', name: 'get_wearable_comparison', input: {} };
+      if (requests === 2)
+        return {
+          action: 'tool',
+          name: 'get_daily_values',
+          input: { metric: 'sleepMinutes', start: '2026-10-02', end: '2026-10-22' }
+        };
+      if (requests === 3) return { action: 'answer', answer: { invalidDraft: 'x'.repeat(1800) } };
+      repairedEnvelopeBytes = Buffer.byteLength(JSON.stringify(context)) + 1000;
+      const days = context.trace.find((t) => t.name === 'get_daily_values').output.records;
+      return {
+        action: 'answer',
+        answer: answer('recording-source-change', [
+          claim('measured', 'Recording sources changed in the recent window.', days[0].handle, days.at(-1).handle)
+        ])
+      };
+    }
+  });
+  assert.ok(repairedEnvelopeBytes > 8000);
+  assert.equal(result.status, 'validated');
+  assert.equal(requests, 4);
+  assert.deepEqual(result.metrics.validationFailures, [['answer-schema']]);
 });

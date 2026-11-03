@@ -103,7 +103,8 @@ export function createGatewayComparison({ apiKey, allowanceUsd, record, transpor
       try {
         const counted = await transport(`${endpoint}/count_tokens`, { ...options, body: JSON.stringify(countBody) });
         const count = counted.ok ? (await counted.json()).input_tokens : null;
-        if (!integer(count) || count + 1024 > 8000 || signal.aborted) throw new Error('token-count-limit');
+        if (!integer(count) || signal.aborted) throw new Error('token-count-unavailable');
+        if (count + 1024 > 8000) throw new Error('input-limit');
         run.requests++;
         run.spent += reservation;
         total += reservation;
@@ -162,7 +163,11 @@ export function createGatewayComparison({ apiKey, allowanceUsd, record, transpor
           : { action: 'tool', name: call.name, input: call.input };
       } catch (error) {
         // A fully settled model stop ends this run; it is not an uncertain bill.
-        if (settled && error instanceof Error && error.message === 'output-limit') throw error;
+        if (
+          error instanceof Error &&
+          ((settled && error.message === 'output-limit') || (!reserved && error.message === 'input-limit'))
+        )
+          throw error;
         stopped = true;
         if (reserved && !settled) await record({ key, status: 'uncertain', heldMicroUsd: reservation }).catch(() => {});
         throw new Error('gateway-request-stopped');
