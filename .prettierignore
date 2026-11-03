@@ -14,3 +14,6 @@ supabase/.temp
 
 # Generated code
 **/next-env.d.ts
+
+# Local synthetic Eve runtime artifacts
+**/.eve
