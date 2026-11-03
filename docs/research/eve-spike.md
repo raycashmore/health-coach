@@ -93,3 +93,52 @@ inside the isolated package. Public counterparts:
 [getting started](https://eve.dev/docs/getting-started),
 [built-in tools](https://eve.dev/docs/concepts/built-in-tools),
 [tools](https://eve.dev/docs/tools), and [evals](https://eve.dev/docs/evals).
+
+## Approved live comparison transport
+
+The owner approved the separate US$1 generation envelope on 3 November 2026.
+The live project under `scripts/eve-spike/live` uses the same three tools and
+source corpus. Its provider allows a final answer after the sixth tool result
+by removing tools, with at most seven model requests. The fixed control uses one
+lexical search, reads every returned section (up to five), then gets one answer
+request. Both use `prompt.mjs`, the same model, citation contract, evidence byte
+bounds and 1,000-token output cap. Eve's framework prompt adds context overhead;
+the comparison records that difference rather than pretending prompts match.
+
+```sh
+pnpm --dir scripts/eve-spike --ignore-workspace test:live-boundary
+node scripts/eve-spike/run-comparison.mjs --fixture
+```
+
+Only the explicitly approved execution uses `--live`. It reads the existing
+Gateway credential from the ignored retrieval credentials file, or the explicit
+`HC_SPIKE_CREDENTIALS` file. It rechecks public model pricing, creates the ignored
+`.eve/approved-comparison/ledger.json` exclusively and refuses another run if that
+ledger exists. The first reference case is the initial demonstration and counts
+inside the ten answers. No extra smoke request or automatic repeat is made.
+
+The HTTP boundary fixes the model to `openai/gpt-4.1-mini`, OpenAI provider only,
+and rejects redirects, alternate endpoints, models and tools. Non-streaming
+responses are adapted to Eve's stream interface so failures can withhold the
+answer. The complete serialized request must fit within 40,000 UTF-8 bytes minus
+a 4,096-token framing allowance, with at most 32 messages and three tools. For
+this byte-token model this deliberately overbounds text/schema tokens; actual
+provider usage is checked before forwarding output. This is a bounded text/tool
+protocol, not a general tokenizer or universal transport guarantee. See OpenAI's
+[byte-pair tokenization reference](https://github.com/openai/tiktoken).
+
+Before HTTP, the ledger durably reserves every attempted request, including a
+fingerprint to reject retries/replays. Failures block their run; a provider usage
+limit violation stops the whole comparison. A lock collision fails closed. Seven
+requests per agent answer and one per fixed answer allow 40 requests total.
+Forty requests at the approved maximum input/output and uncached rates reserve
+US$0.704, within the US$1 grant. Unknown failure cost is recorded as unknown while
+retaining its reservation; available usage is retained even when output fails.
+SDK retries are disabled for the fixed control; Eve receives terminal errors
+without a retryable cause. The ledger also rejects a repeated HTTP attempt.
+
+The boundary tests cover request/routing/context limits, durable reservations,
+replays, lock ownership, all fixed-control hits, SDK generate/stream paths,
+provider failures, known usage on incomplete output, global stop on usage
+violation and redirects. The full fixture comparison exercises all ten answers
+without calling a provider. Generated traces and raw replies stay ignored.

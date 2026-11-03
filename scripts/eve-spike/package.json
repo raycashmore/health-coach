@@ -8,11 +8,15 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "test": "EVE_TELEMETRY_DISABLED=1 eve eval --max-concurrency 1 --skip-report",
-    "test:tools": "node --test ../eve-spike.test.mjs"
+    "test:tools": "node --test ../eve-spike.test.mjs",
+    "test:live-boundary": "node --test live-budget.test.mjs live-model.test.mjs"
   },
   "dependencies": {
-    "eve": "1.0.0-rc.2",
     "ai": "7.0.162",
+    "eve": "1.0.0-rc.2",
     "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24"
   }
 }
