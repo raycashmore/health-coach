@@ -1,0 +1,19 @@
+# Markdown vault retrieval: pgvector hybrid RAG
+
+## Findings
+
+- **Established and practical, but adoption evidence is qualitative.** Supabase documents first-class pgvector, full-text, and hybrid retrieval patterns, including an example for Markdown files. Named customer stories include Firecrawl's documentation search and Quivr's reported 1.6M embeddings. These are vendor-published examples and performance claims, not independent validation or market-share evidence. They support real production use, but do not establish how common the pattern is or predict a personal vault's performance.
+- **Exact versus HNSW.** pgvector's default is exact nearest-neighbor ranking with perfect recall; for a small personal corpus, benchmark it first. HNSW is approximate: it trades recall for query speed, costs more memory and index-build/insert time, and is tunable with `ef_search`. Do not assume an index helps a small corpus; PostgreSQL may correctly prefer a scan.
+- **Filtering affects recall and result count.** HNSW retrieves candidates by vector distance and applies SQL filters afterward. Selective filters can leave fewer than `LIMIT` results and miss in-scope neighbors. pgvector 0.8+ iterative scans can continue scanning; partial indexes or partitioning suit stable/selective metadata patterns. Compare approximate results against exact results on representative filtered queries.
+- **Keyword and semantic search cover different intents.** PostgreSQL full-text search (`tsvector` + GIN) matches normalized terms/phrases, useful for exact names, dates, codes, and quoted wording. Vector search finds conceptual similarity and paraphrases. Supabase's hybrid example combines these result sets with reciprocal-rank fusion; evaluate whether this actually improves relevant retrieval for the owner's queries.
+- **Latency is a pipeline, not a pgvector number.** For an interactive query, measure query embedding, keyword/vector retrieval and fusion, optional reranking, and generation separately and end-to-end. Query embeddings may be cached for repeated queries; document embeddings belong in ingestion/update work. Reranking and generation add model/network latency; generation often dominates, but that must be measured for the chosen providers/models. No source here provides transferable p50/p95 for a personal Markdown vault.
+- **Benchmark quality and tail latency locally.** Build a small, privacy-safe query set with judged relevant chunks. Compare exact vs HNSW and keyword vs semantic vs hybrid using Recall@k / MRR or nDCG, filtered-result completeness, and answer citation/support checks. Record repeated end-to-end p50 and p95, plus per-stage durations, on the intended device/deployment and corpus size. Tune only against that quality/latency tradeoff; don't invent an expected latency target from vendor claims.
+
+## Sources
+
+1. [pgvector README (official project)](https://github.com/pgvector/pgvector/blob/master/README.md) — exact/approximate behavior, HNSW tradeoffs, filtering, iterative scans, and recall comparison guidance.
+2. [Supabase Hybrid Search docs](https://supabase.com/docs/guides/ai/hybrid-search) — `tsvector`/GIN + pgvector/HNSW and reciprocal-rank fusion example.
+3. [Supabase pgvector docs](https://supabase.com/docs/guides/database/extensions/pgvector) — embedding storage and filtering caveats.
+4. [Supabase Markdown vector-search tutorial](https://supabase.com/docs/guides/ai/examples/nextjs-vector-search) — practical Markdown ingestion and retrieval example.
+5. [Firecrawl customer story (Supabase)](https://supabase.com/customers/firecrawl) — named production documentation-search case; performance comparison is the customer's/vendor-published claim.
+6. [Supabase Vector customer stories](https://supabase.com/modules/vector) — includes named MDN and Quivr examples; adoption evidence is vendor curated, not an independent sample.
