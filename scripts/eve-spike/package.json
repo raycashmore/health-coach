@@ -1,0 +1,24 @@
+{
+  "name": "health-coach-eve-spike",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "test": "EVE_TELEMETRY_DISABLED=1 eve eval --max-concurrency 1 --skip-report",
+    "test:tools": "node --test ../eve-spike.test.mjs",
+    "test:live-boundary": "node --test live-budget.test.mjs live-model.test.mjs",
+    "test:model-comparison": "node --test model-profiles.test.mjs && HC_SPIKE_PROFILE=sonnet-5.5-low node --test sonnet-model.test.mjs"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "4.0.96",
+    "ai": "7.0.162",
+    "eve": "1.0.0-rc.2",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24"
+  }
+}
