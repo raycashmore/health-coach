@@ -4,15 +4,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { embeddingEndpoint, loadCloudCredentials, selectProject } from './retrieval/cloud-config.mjs';
 import { sectionMarkdown } from './retrieval/prepare-markdown.mjs';
-import { corpusVersion, notes, questions } from './retrieval/synthetic-corpus.mjs';
+import { corpusVersion, notes, questions as originalQuestions } from './retrieval/synthetic-corpus.mjs';
 import { embeddingModel, pricePerMillion, withEmbeddingBudget } from './retrieval/embedding-budget.mjs';
 import { withExclusiveRun, saveRunJournal } from './retrieval/run-state.mjs';
 import { scoreRetrieval, summarizeTimings } from './retrieval/metrics.mjs';
 
+import { qualityQuestions, lexicalQuery, rubric, inspectQuality, supportMetrics } from './retrieval/quality.mjs';
+
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const directory = path.join(repository, 'private-data/retrieval-cloud');
+const qualityRun = process.argv.includes('--quality');
+const questions = qualityRun ? qualityQuestions : originalQuestions;
 const modes = ['keyword', 'semantic', 'hybrid'];
-const repetitions = 6; // First pass + 60 warm samples per mode (12 questions x 5).
+const repetitions = 6; // First pass plus five warm repetitions per question and mode.
 const digest = (text) => createHash('sha256').update(text).digest('hex');
 const sections = notes.flatMap((note) => {
   const parsed = sectionMarkdown(note.markdown);
@@ -163,7 +167,7 @@ async function main() {
             'hc_retrieval_exp_search',
             {
               p_experiment: experiment,
-              p_query: q.query,
+              p_query: qualityRun && mode !== 'semantic' ? lexicalQuery(q.query) : q.query,
               p_embedding: vector && JSON.stringify(vector),
               p_mode: mode,
               p_limit: 10
@@ -292,11 +296,29 @@ async function main() {
       timings,
       latency: summarizeTimings(timings),
       checks: { anonymousDenied, ownerIsolation: true, citationRevisions: true, replacement: true, deletion: true },
-      missingEvidence:
-        'Raw semantic and hybrid rankings return neighbors for unanswerable questions; no abstention threshold or answer support policy evaluated.'
+      ...(qualityRun
+        ? {
+            rubric,
+            inspection: Object.fromEntries(
+              modes.map((mode) => [mode, inspectQuality(questions, rankings[mode], sections)])
+            ),
+            support: Object.fromEntries(
+              modes.map((mode) => [mode, supportMetrics(inspectQuality(questions, rankings[mode], sections))])
+            )
+          }
+        : {}),
+      missingEvidence: qualityRun
+        ? 'Ranking does not establish support. Nonempty results require review; no automatic support acceptance is claimed.'
+        : 'Raw semantic and hybrid rankings return neighbors for unanswerable questions; no abstention threshold or answer support policy evaluated.'
     };
-    await writeFile(path.join(directory, 'results.json'), JSON.stringify(report, null, 2), { mode: 0o600 });
-    console.log('Comparison saved to ignored private-data/retrieval-cloud/results.json');
+    await writeFile(
+      path.join(directory, qualityRun ? 'quality-results.json' : 'results.json'),
+      JSON.stringify(report, null, 2),
+      { mode: 0o600 }
+    );
+    console.log(
+      `Comparison saved to ignored private-data/retrieval-cloud/${qualityRun ? 'quality-results.json' : 'results.json'}`
+    );
   } finally {
     const cleanupFailures = [];
     for (const user of users) {
