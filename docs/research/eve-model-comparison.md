@@ -111,3 +111,10 @@ Raw synthetic replies, provider identifiers, blinded verdicts and ledgers remain
 ignored under scripts/eve-spike/.eve/model-comparison-v1. Only sanitized findings
 are recorded here. No code changed during execution; existing preparation checks
 remain applicable. Report formatting and repository verification run at closeout.
+
+## Final learning acceptance
+
+The owner confirmed this experiment was useful for learning and requested closure.
+The bounded slice is complete. Grounding failures and experimental limitations
+remain findings; no production model or framework was selected. No further
+model run is authorized by the completed grants.

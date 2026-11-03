@@ -4,7 +4,8 @@
     "deploymentEnabled": {
       "chore/local-development-readiness": false,
       "experiment/markdown-retrieval": false,
-      "feature/ray-265-retrieval-quality": false
+      "feature/ray-265-retrieval-quality": false,
+      "feature/ray-266-eve-spike": false
     }
   }
 }
