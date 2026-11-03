@@ -4,13 +4,13 @@ import { defineEval } from 'eve/evals';
 import { generateText } from 'ai';
 import { demoCases } from '../../fixtures.mjs';
 import { liveModel } from '../../live-model.mjs';
-import { runMarker } from '../../live-budget.mjs';
+import { runMarker, liveEnvelope } from '../../live-budget.mjs';
 import { fixedEvidence } from '../../control.mjs';
 import { answerInstructions } from '../../prompt.mjs';
 
 export default demoCases.map((item) =>
   defineEval({
-    description: `Synthetic pair: ${item.id}`,
+    description: `Synthetic ${liveEnvelope.agentOnly ? 'agent case' : 'pair'}: ${item.id}`,
     async test(t) {
       const directory = process.env.HC_SPIKE_RESULTS;
       if (!directory) throw new Error('Explicit synthetic result directory required');
@@ -25,6 +25,15 @@ export default demoCases.map((item) =>
         events: turn.events
       };
       t.maxToolCalls(6);
+      if (liveEnvelope.agentOnly) {
+        await writeFile(
+          path.join(directory, `${item.id}.json`),
+          JSON.stringify({ caseId: item.id, query: item.query, agent }, null, 2),
+          { flag: 'wx', mode: 0o600 }
+        );
+        t.log(`${item.id}: agent ${agent.status}`);
+        return;
+      }
       const fixedStarted = Date.now();
       const evidence = fixedEvidence(item.query);
       let fixed;

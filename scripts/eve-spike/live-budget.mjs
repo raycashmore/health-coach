@@ -1,17 +1,9 @@
 import { createHash } from 'node:crypto';
 import { open, readFile, rename, unlink } from 'node:fs/promises';
 import { demoCases } from './fixtures.mjs';
+import { selectModelProfile } from './model-profiles.mjs';
 
-export const liveEnvelope = Object.freeze({
-  model: 'openai/gpt-4.1-mini',
-  endpoint: 'https://ai-gateway.vercel.sh/v4/ai/language-model',
-  inputTokens: 40000,
-  outputTokens: 1000,
-  requests: 40,
-  inputNanoUsd: 400,
-  outputNanoUsd: 1600,
-  allowanceNanoUsd: 1_000_000_000
-});
+export const liveEnvelope = selectModelProfile(process.env.HC_SPIKE_PROFILE);
 export const requestReservation =
   liveEnvelope.inputTokens * liveEnvelope.inputNanoUsd + liveEnvelope.outputTokens * liveEnvelope.outputNanoUsd;
 
@@ -54,7 +46,7 @@ export function modelPrompt(prompt) {
     )
   };
 }
-function boundRun(headers, prompt) {
+export function boundRun(headers, prompt) {
   const match = /^(agent|fixed):([a-z]+)$/.exec(headers.get('x-hc-spike-run') ?? '');
   const item = match && demoCases.find((item) => item.id === match[2]);
   if (!item) throw new Error('Unknown bound run');
@@ -89,7 +81,8 @@ export function validateRequest(url, init) {
   if (inputBound > liveEnvelope.inputTokens || body.maxOutputTokens !== liveEnvelope.outputTokens)
     throw new Error('Input/output limit');
   const gateway = body.providerOptions?.gateway;
-  if (JSON.stringify(gateway) !== JSON.stringify({ only: ['openai'] })) throw new Error('Provider routing not allowed');
+  if (JSON.stringify(gateway) !== JSON.stringify({ only: [liveEnvelope.provider] }))
+    throw new Error('Provider routing not allowed');
   const names = (body.tools ?? []).map((tool) => tool.name).sort();
   if (
     names.some((name) => !['search', 'read_section', 'follow_reference'].includes(name)) ||
@@ -98,6 +91,7 @@ export function validateRequest(url, init) {
   )
     throw new Error('Tool capability not allowed');
   const run = boundRun(headers, body.prompt);
+  if (liveEnvelope.agentOnly && run.mode !== 'agent') throw new Error('Profile permits agent cases only');
   if (run.mode === 'fixed' && names.length) throw new Error('Fixed control must have no model tools');
   return { ...run, inputBound, fingerprint: createHash('sha256').update(init.body).digest('hex') };
 }
@@ -107,7 +101,11 @@ export async function createLedger(filename) {
     await file.writeFile(
       JSON.stringify({
         version: 1,
-        authority: 'Owner-approved RAY-266 US$1 synthetic generation comparison',
+        profile: liveEnvelope.id,
+        authority:
+          liveEnvelope.id === 'original'
+            ? 'Owner-approved RAY-266 US$1 synthetic generation comparison'
+            : 'RAY-266 requested model comparison; matching generation grant required before live execution',
         reservedNanoUsd: liveEnvelope.requests * requestReservation,
         requests: [],
         blockedRuns: []
@@ -141,6 +139,7 @@ export async function reserveRequest(filename, request) {
     if (
       ledger.stoppedReason ||
       ledger.version !== 1 ||
+      ledger.profile !== liveEnvelope.id ||
       ledger.reservedNanoUsd > liveEnvelope.allowanceNanoUsd ||
       ledger.reservedNanoUsd !== liveEnvelope.requests * requestReservation
     )

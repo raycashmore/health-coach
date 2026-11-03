@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parseEnv } from 'node:util';
 import { createGateway, wrapLanguageModel, simulateStreamingMiddleware } from 'ai';
 import { fixtureTransport } from './fixture-transport.mjs';
+import { anthropicModel } from './sonnet-model.mjs';
 import { liveEnvelope, modelPrompt, validateRequest, reserveRequest, finishRequest } from './live-budget.mjs';
 
 function terminal(reason) {
@@ -82,6 +83,7 @@ export async function liveModel({
   const values = parseEnv(await readFile(credentialsFile, 'utf8'));
   const apiKey = values.AI_GATEWAY_API_KEY?.trim();
   if (!apiKey) throw terminal('gateway-credential-unavailable');
+  if (liveEnvelope.api === 'anthropic') return anthropicModel({ ledgerFile, apiKey, transport, toolsAvailable });
   const provider = createGateway({
     apiKey,
     fetch: boundedFetch({ ledgerFile, transport: process.env.HC_SPIKE_DRY_RUN === '1' ? fixtureTransport : transport })
@@ -98,7 +100,7 @@ export async function liveModel({
             prompt: prepared.prompt,
             headers: { ...params.headers, 'x-hc-spike-run': prepared.run.key },
             maxOutputTokens: liveEnvelope.outputTokens,
-            providerOptions: { gateway: { only: ['openai'] } },
+            providerOptions: { gateway: { only: [liveEnvelope.provider] } },
             ...(!toolsAvailable ? { tools: [], toolChoice: { type: 'none' } } : {})
           };
         },

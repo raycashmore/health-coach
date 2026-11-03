@@ -142,3 +142,67 @@ replays, lock ownership, all fixed-control hits, SDK generate/stream paths,
 provider failures, known usage on incomplete output, global stop on usage
 violation and redirects. The full fixture comparison exercises all ten answers
 without calling a provider. Generated traces and raw replies stay ignored.
+
+## Two-model comparison preflight
+
+After reviewing the first result, the owner requested another model. The local
+runner now supports a separate registered comparison: GPT-4.1 mini and Claude
+Sonnet 5.5 at low effort, five agent questions each. The original result and its
+one-time journal are retained. This preparation does not claim new model quality
+or grant additional generation spending; the canonical RAY-266 issue owns that
+decision and scope.
+
+```sh
+pnpm --dir scripts/eve-spike --ignore-workspace test:model-comparison
+node scripts/eve-spike/model-comparison.mjs --fixture
+```
+
+The full fixture run completes both five-question arms without provider calls.
+Quality review receives randomly assigned A/B answers and observable tool traces;
+the model mapping, costs and latency remain in separate ignored files until
+quality scoring is recorded. Questions, notes, prompts, citation rules and
+six-tool/seven-model-call limits are shared. Both new arms use a 2,000-token
+output allowance; Sonnet thinking shares that allowance. The fixed workflow is
+not rerun because this extension asks about model choice. Arm order and one trial
+per case limit latency and reliability conclusions.
+
+The original 40-request / 1,000-output-token profile remains separate. New profiles
+allow at most 35 generation attempts each (70 total), with no model/provider
+fallbacks, retries or automatic repeat. Their conservative reservations total
+US$4.872 within a proposed US$5 envelope. A new exclusive batch manifest and
+profile-bound per-arm journals prevent accidental repeats and mixing grants.
+The caller must have the matching owner grant before using `--live`.
+
+Claude uses the AI SDK's native Anthropic adapter through the existing Gateway.
+Before generation, its actual model/system/messages/tools/thinking payload goes
+to Gateway's supported `POST /v1/messages/count_tokens` endpoint. Count failures
+or counts plus a 1,024-token margin exceeding 40,000 prevent generation. The
+same native payload is then sent to `POST /v1/messages`, restricted to Anthropic.
+Up to 35 additional token-count preflights are allowed; they perform no generation.
+Cache-control markers are removed, automatic caching is not requested, and the
+reservation still covers the five-minute cache-write rate. Unexpected one-hour
+cache charges are recorded and stop that arm. Actual cache/uncached input and
+output usage—including thinking—is checked and recorded before returning output.
+
+The native adapter removes the need to assume the GPT-specific byte/token bound
+also applies to Claude. The existing byte cap still restricts context size. Unit
+tests cover count-before-generation, identical counted/sent prompts and tools,
+input and output limits, failures/replays, provider restriction, cached-token
+accounting and thinking's shared output allowance. These are offline boundary
+proofs; actual access and provider behavior remain unverified until an authorized
+live run reaches those checks.
+
+Primary references: [Gateway Anthropic endpoints](https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api),
+[Claude token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting),
+[effort controls](https://platform.claude.com/docs/en/build-with-claude/effort), and
+[the current Gateway model catalog](https://ai-gateway.vercel.sh/v1/models).
+
+A count-only access probe subsequently returned HTTP 200 with 573 input tokens
+for the SDK-generated low-effort/adaptive-thinking request with a synthetic
+question and custom tool. A minimal request returned 27. The initial probes
+exposed a compatibility error: the counting endpoint rejects `providerOptions`
+as an extra field. The adapter now omits that generation-routing field from the
+count request while retaining it on generation. Regression tests cover this
+separation. Four count-only probes made zero generation requests; the native
+payload and credentials remain local. This verifies counting access/settings,
+not a completed Sonnet answer.

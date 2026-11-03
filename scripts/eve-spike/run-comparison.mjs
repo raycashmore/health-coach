@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createLedger, liveEnvelope } from './live-budget.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
+if (liveEnvelope.id !== 'original') throw new Error('Use the dedicated model-comparison launcher for another profile');
 const live = process.argv.includes('--live');
 if (!live && !process.argv.includes('--fixture'))
   throw new Error('Choose --fixture or the owner-approved --live comparison');
