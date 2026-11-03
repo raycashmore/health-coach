@@ -28,9 +28,16 @@ export function fixedEvidence(evidence) {
   for (const handle of handles) evidence.call('read_note_section', { handle });
 }
 
-// Offline boundary only. No credentials, provider client, environment loading or network transport.
+// The runner owns evidence and stopping. Request adapters own transport and usage accounting.
 // request receives model-visible context, never fixture IDs or authored expected labels.
-export async function runOfflineInvestigation({ fixture, mode = 'agent', request, now = Date.now, timeoutMs = 60000 }) {
+export async function runInvestigation({
+  fixture,
+  mode = 'agent',
+  request,
+  now = Date.now,
+  timeoutMs = 60000,
+  execution = 'offline-replay'
+}) {
   if (!['agent', 'fixed'].includes(mode)) throw new Error('Unknown arm');
   const evidence = createEvidence(fixture);
   const started = now();
@@ -56,8 +63,8 @@ export async function runOfflineInvestigation({ fixture, mode = 'agent', request
       evidenceBytes: evidence.bytes,
       elapsedMs: now() - started,
       repair: repaired,
-      costUsd: 0,
-      execution: 'offline-replay'
+      costUsd: execution === 'offline-replay' ? 0 : null,
+      execution
     };
   }
   if (!evidence.comparison.coverage.find((c) => c.metric === 'sleepMinutes')?.comparable) {

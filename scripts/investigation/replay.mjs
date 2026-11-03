@@ -1,5 +1,5 @@
 import { cases, syntheticCase } from './fixtures.mjs';
-import { runOfflineInvestigation } from './run.mjs';
+import { runInvestigation } from './run.mjs';
 
 // Hand-authored software test responses, not model judgement or comparison evidence.
 export function replayRequest({ semanticSearch = false } = {}) {
@@ -65,7 +65,7 @@ export async function replayAll() {
   const rows = [];
   for (const item of cases) {
     for (const mode of ['agent', 'fixed']) {
-      const result = await runOfflineInvestigation({
+      const result = await runInvestigation({
         fixture: syntheticCase(item.id),
         mode,
         request: replayRequest({ semanticSearch: true })

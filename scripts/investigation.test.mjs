@@ -4,7 +4,7 @@ import { createEvidence } from './investigation/evidence.mjs';
 import { validateAnswer } from './investigation/answer.mjs';
 import { syntheticCase } from './investigation/fixtures.mjs';
 import { replayAll, replayRequest } from './investigation/replay.mjs';
-import { fixedEvidence, runOfflineInvestigation } from './investigation/run.mjs';
+import { fixedEvidence, runInvestigation } from './investigation/run.mjs';
 
 const search = (query) => ({ query, from: '2026-10-13', to: '2026-10-22' });
 const answer = (conclusion, claims) => ({ conclusion, claims, contextQuestion: null });
@@ -104,14 +104,14 @@ test('non-notable sleep requires restraint even when another metric changes', ()
 test('one repair is accepted, second invalid answer fails closed without partial text', async () => {
   let attempt = 0;
   const replay = replayRequest();
-  const repaired = await runOfflineInvestigation({
+  const repaired = await runInvestigation({
     fixture: syntheticCase('no-change'),
     mode: 'fixed',
     request: async (ctx) => (++attempt === 1 ? { action: 'answer', answer: {} } : replay(ctx))
   });
   assert.equal(repaired.status, 'validated');
   assert.equal(repaired.metrics.repair, true);
-  const failed = await runOfflineInvestigation({
+  const failed = await runInvestigation({
     fixture: syntheticCase('missing'),
     mode: 'fixed',
     request: async () => ({ action: 'answer', answer: { text: 'DO NOT SHOW' } })
@@ -123,7 +123,7 @@ test('one repair is accepted, second invalid answer fails closed without partial
 test('coverage stops before invoking request; fixed arm rejects model-selected tools', async () => {
   const fixture = syntheticCase('missing');
   fixture.comparison.coverage.find((c) => c.metric === 'sleepMinutes').comparable = false;
-  const result = await runOfflineInvestigation({
+  const result = await runInvestigation({
     fixture,
     request: () => {
       throw new Error('must not run');
@@ -131,7 +131,7 @@ test('coverage stops before invoking request; fixed arm rejects model-selected t
   });
   assert.equal(result.reason, 'insufficient-coverage');
   assert.equal(result.metrics.requests, 0);
-  const fixed = await runOfflineInvestigation({
+  const fixed = await runInvestigation({
     fixture: syntheticCase('missing'),
     mode: 'fixed',
     request: async () => ({ action: 'tool', name: 'search_notes', input: search('flight') })
@@ -140,7 +140,7 @@ test('coverage stops before invoking request; fixed arm rejects model-selected t
 });
 test('deadline aborts a hanging request and rejects late answers', async () => {
   let signal;
-  const result = await runOfflineInvestigation({
+  const result = await runInvestigation({
     fixture: syntheticCase('missing'),
     timeoutMs: 10,
     request: async (_, options) => {
@@ -152,7 +152,7 @@ test('deadline aborts a hanging request and rejects late answers', async () => {
   assert.equal(signal.aborted, true);
 });
 test('request, tool and byte budgets fail closed; duplicates consume calls', async () => {
-  const result = await runOfflineInvestigation({
+  const result = await runInvestigation({
     fixture: syntheticCase('missing'),
     request: async () => ({ action: 'tool', name: 'get_wearable_comparison', input: {} })
   });
@@ -165,19 +165,19 @@ test('request, tool and byte budgets fail closed; duplicates consume calls', asy
   const bytes = createEvidence(large);
   const hit = bytes.call('search_notes', search('flight')).hits[0];
   assert.throws(() => bytes.call('read_note_section', { handle: hit.handle }), /evidence-byte-limit/);
-  const output = await runOfflineInvestigation({
+  const output = await runInvestigation({
     fixture: syntheticCase('missing'),
     request: async () => ({ text: 'x'.repeat(1100) })
   });
   assert.equal(output.reason, 'output-limit');
 });
 test('invalid tools and request failures never escape as owner answers', async () => {
-  const result = await runOfflineInvestigation({
+  const result = await runInvestigation({
     fixture: syntheticCase('missing'),
     request: async () => ({ action: 'tool', name: 'shell', input: {} })
   });
   assert.equal(result.reason, 'invalid-tool-input');
-  const failed = await runOfflineInvestigation({
+  const failed = await runInvestigation({
     fixture: syntheticCase('missing'),
     request: async () => {
       throw new Error('provider secret');
@@ -208,7 +208,7 @@ test('wearable handles use each metric end date', () => {
 });
 test('non-Error callback rejections still return the deterministic fallback', async () => {
   for (const rejection of [null, undefined, 'private failure']) {
-    const result = await runOfflineInvestigation({
+    const result = await runInvestigation({
       fixture: syntheticCase('missing'),
       request: () => Promise.reject(rejection)
     });
