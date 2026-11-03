@@ -36,7 +36,9 @@
     "verify:local-dev": "node scripts/verify-local-dev-orchestration.mjs",
     "verify:public-content": "node scripts/check-public-secrets.mjs",
     "verify": "pnpm verify:public-content && pnpm format:check && pnpm typecheck && pnpm test",
-    "eval:wearable:local": "tsx scripts/evaluate-wearable-review.ts"
+    "eval:wearable:local": "tsx scripts/evaluate-wearable-review.ts",
+    "retrieval:prepare": "node scripts/prepare-retrieval.mjs",
+    "retrieval:experiment": "node scripts/run-retrieval-experiment.mjs"
   },
   "devDependencies": {
     "@health-coach/health-core": "workspace:^",

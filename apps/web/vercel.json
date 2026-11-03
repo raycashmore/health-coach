@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "chore/local-development-readiness": false
+      "chore/local-development-readiness": false,
+      "experiment/markdown-retrieval": false
     }
   }
 }
