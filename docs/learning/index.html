@@ -775,6 +775,49 @@
             </p>
             <a class="source" href="../research/synthetic-investigation-replay.md">Read the original record →</a>
           </article>
+          <article id="integrated-lab-context" class="entry experiment" data-view="experiments">
+            <p class="meta">Local synthetic contract verification · 2026-11-04</p>
+            <h2 class="entry-title">
+              <a href="#integrated-lab-context">One evidence path before a real model call</a>
+            </h2>
+            <p class="question">
+              Can labs, dated activity and full-text notes form one bounded, attributable answer input?
+            </p>
+            <dl>
+              <dt>What we tried</dt>
+              <dd>
+                Six invented integrated cases in a fresh disposable Postgres database, with fake generation and a
+                recording-only trace exporter. Exercise correction, deletion, missing coverage and owner isolation.
+              </dd>
+              <dt>What happened</dt>
+              <dd>
+                The local path passed its contract checks. The model received bounded evidence; exported spans contained
+                only allowlisted operational metadata. Citation and source-lifecycle checks ran without paid calls or
+                private data.
+              </dd>
+              <dt>What it teaches</dt>
+              <dd>
+                Test evidence freshness, input limits and trace collection boundaries before judging generated answers.
+                A fake model proves plumbing contracts, not usefulness or grounded interpretation.
+              </dd>
+            </dl>
+            <details>
+              <summary>Limits and interpretation</summary>
+              <p>
+                No Terra call, real Langfuse project, representative owner case, hosted authentication or
+                Android/Mac-off flow was exercised. Evaluation labels remain drafts; no vector comparison was run.
+              </p>
+            </details>
+            <p class="connections">
+              Review <a href="#retrieval">Retrieval and RAG</a> ·
+              <a href="#provenance">Provenance and source freshness</a> ·
+              <a href="#citations">Resolvable citations</a> ·
+              <a href="#validation">Structural validation and semantic review</a> ·
+              <a href="#evaluation">Different layers of acceptance</a> ·
+              <a href="#replay">Offline replay versus live evidence</a>
+            </p>
+            <a class="source" href="../research/lab-context-baseline.md">Read the original record →</a>
+          </article>
         </section>
         <section id="concepts" class="view" hidden>
           <h1>Concepts to return to</h1>
@@ -797,7 +840,10 @@
                 Related: <a href="#embeddings">Embeddings and semantic search</a> ·
                 <a href="#grounding">Grounding and claim coverage</a>
               </p>
-              <p>Seen in: <a href="#cloud-retrieval">Finding the right passage</a></p>
+              <p>
+                Seen in: <a href="#cloud-retrieval">Finding the right passage</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
+              </p>
             </details>
           </article>
           <article id="embeddings" class="entry concept" data-view="concepts">
@@ -974,7 +1020,8 @@
               </p>
               <p>
                 Seen in: <a href="#eve-control">A tool loop is not automatically a better answer</a> ·
-                <a href="#model-choice">Same tools, different search decisions</a>
+                <a href="#model-choice">Same tools, different search decisions</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
               </p>
             </details>
           </article>
@@ -998,7 +1045,10 @@
                 Related: <a href="#citations">Resolvable citations</a> ·
                 <a href="#validation">Structural validation and semantic review</a>
               </p>
-              <p>Seen in: <a href="#investigation-design">Design the decision before the agent</a></p>
+              <p>
+                Seen in: <a href="#investigation-design">Design the decision before the agent</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
+              </p>
             </details>
           </article>
           <article id="grounding" class="entry concept" data-view="concepts">
@@ -1075,7 +1125,8 @@
               </p>
               <p>
                 Seen in: <a href="#offline-replay">What an offline replay can prove</a> ·
-                <a href="#live-investigation">Keep a negative result intact</a>
+                <a href="#live-investigation">Keep a negative result intact</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
               </p>
             </details>
           </article>
@@ -1099,7 +1150,10 @@
                 Related: <a href="#harness">The experiment harness</a> ·
                 <a href="#evaluation">Different layers of acceptance</a>
               </p>
-              <p>Seen in: <a href="#offline-replay">What an offline replay can prove</a></p>
+              <p>
+                Seen in: <a href="#offline-replay">What an offline replay can prove</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
+              </p>
             </details>
           </article>
           <article id="harness" class="entry concept" data-view="concepts">
@@ -1174,7 +1228,8 @@
               </p>
               <p>
                 Seen in: <a href="#model-choice">Same tools, different search decisions</a> ·
-                <a href="#live-investigation">Keep a negative result intact</a>
+                <a href="#live-investigation">Keep a negative result intact</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
               </p>
             </details>
           </article>
@@ -1389,7 +1444,10 @@
             <h2>4 November 2026</h2>
             <p>
               The companion brings the recorded experiments together. The recurring lesson is to distinguish candidate
-              evidence, valid structure, semantic support and owner usefulness.
+              evidence, valid structure, semantic support and owner usefulness. The
+              <a href="#integrated-lab-context">integrated lab-context contract check</a> joins structured evidence and
+              full-text notes without a real model call. It demonstrates lifecycle and privacy boundaries locally;
+              answer usefulness and live trace ingestion remain unproved.
             </p>
             <p>
               Current open questions: Will bounded investigation add useful evidence on representative tasks? Which
@@ -1439,6 +1497,7 @@
             <li><a href="../research/eve-model-comparison.md">eve model comparison</a></li>
             <li><a href="../research/agent-investigation-design.md">agent investigation design</a></li>
             <li><a href="../research/synthetic-investigation-replay.md">synthetic investigation replay</a></li>
+            <li><a href="../research/lab-context-baseline.md">lab context baseline</a></li>
             <li>
               <a href="../research/markdown-retrieval-performance.md"
                 >Exact search, HNSW and retrieval architecture research</a

@@ -37,6 +37,7 @@
     "verify:public-content": "node scripts/check-public-secrets.mjs",
     "verify": "pnpm verify:public-content && pnpm format:check && pnpm typecheck && pnpm test",
     "eval:wearable:local": "tsx scripts/evaluate-wearable-review.ts",
+    "lab-context:verify": "pnpm --filter @health-coach/web exec tsx scripts/verify-lab-context.mts",
     "retrieval:prepare": "node scripts/prepare-retrieval.mjs",
     "retrieval:experiment": "node scripts/run-retrieval-experiment.mjs"
   },

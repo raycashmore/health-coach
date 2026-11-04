@@ -91,6 +91,19 @@
       "limits": "Remaining input-byte guards confounded agent repairs; rejected control drafts lacked diagnostics. Post-run fixes do not retrospectively repair results. Owner ratings remain unverified; no further paid run is authorized by the record.",
       "source": "synthetic-investigation-replay.md",
       "concepts": ["validation", "harness", "grounding", "evaluation", "tokens"]
+    },
+    {
+      "id": "integrated-lab-context",
+      "title": "One evidence path before a real model call",
+      "date": "2026-11-04",
+      "kind": "Local synthetic contract verification",
+      "question": "Can labs, dated activity and full-text notes form one bounded, attributable answer input?",
+      "method": "Six invented integrated cases in a fresh disposable Postgres database, with fake generation and a recording-only trace exporter. Exercise correction, deletion, missing coverage and owner isolation.",
+      "finding": "The local path passed its contract checks. The model received bounded evidence; exported spans contained only allowlisted operational metadata. Citation and source-lifecycle checks ran without paid calls or private data.",
+      "lesson": "Test evidence freshness, input limits and trace collection boundaries before judging generated answers. A fake model proves plumbing contracts, not usefulness or grounded interpretation.",
+      "limits": "No Terra call, real Langfuse project, representative owner case, hosted authentication or Android/Mac-off flow was exercised. Evaluation labels remain drafts; no vector comparison was run.",
+      "source": "lab-context-baseline.md",
+      "concepts": ["retrieval", "provenance", "citations", "validation", "evaluation", "replay"]
     }
   ],
   "concepts": [
