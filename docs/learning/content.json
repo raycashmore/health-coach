@@ -1,0 +1,274 @@
+{
+  "updated": "2026-11-04",
+  "experiments": [
+    {
+      "id": "cloud-retrieval",
+      "title": "Finding the right passage",
+      "date": "2026-11-03",
+      "kind": "Live synthetic experiment",
+      "question": "Can cloud search recover evidence when a question uses different words?",
+      "method": "76 invented workshop notes; 12 frozen questions; literal keyword, exact semantic and hybrid retrieval; six passes. No answer generation.",
+      "finding": "Semantic and hybrid found all 11 required passages at top five. Literal keyword found 2. Hybrid changed none of the semantic rankings. Both vector methods also returned unrelated neighbors for missing-evidence questions.",
+      "lesson": "Finding something similar is different from finding support. Measure missing-evidence behavior alongside recall.",
+      "limits": "The literal keyword baseline was weak. Small authored cases, Mac-to-cloud timing and no generated answers cannot establish private or Android usefulness.",
+      "source": "retrieval-synthetic-results.md",
+      "concepts": ["retrieval", "embeddings", "hybrid", "recall", "latency"]
+    },
+    {
+      "id": "fair-baseline",
+      "title": "A stronger baseline changes the story",
+      "date": "2026-11-03",
+      "kind": "Live synthetic experiment",
+      "question": "Does semantic search still add value when keyword search is formulated fairly?",
+      "method": "Keep the original corpus and questions; add four support-boundary cases. Remove question words, preserve identifiers and OR keyword terms. Compare 16 questions over six passes.",
+      "finding": "Stronger keyword found 12/13 required passages; semantic and hybrid found 13/13. All methods found all seven held-out required passages. Semantic recovered one development paraphrase miss, while returning more irrelevant context.",
+      "lesson": "Compare against a credible simpler method before attributing gains to added complexity.",
+      "limits": "No automatic answers were accepted. Zero unsupported acceptance therefore measures the review policy, not a successful support classifier. The small holdout cannot establish equivalence.",
+      "source": "retrieval-quality.md",
+      "concepts": ["baseline", "hybrid", "recall", "abstention", "holdout"]
+    },
+    {
+      "id": "eve-control",
+      "title": "A tool loop is not automatically a better answer",
+      "date": "2026-11-03",
+      "kind": "Live synthetic experiment",
+      "question": "Does model-selected investigation improve on a fixed retrieval sequence?",
+      "method": "Five workshop questions, same model and evidence tools. Eve chose its calls; the control searched once and read every returned hit.",
+      "finding": "Real tool choices and recovery were observed, but no clear answer-quality improvement. Both approaches failed exact citation acceptance. One paraphrase case was confounded by an internal run label reaching the prompt.",
+      "lesson": "Separate orchestration success, answer quality and citation validity. Keep execution labels outside model-visible questions.",
+      "limits": "One pass, five authored cases and framework/context differences. No live rerun established the effect of the later label fix. No production framework was selected.",
+      "source": "eve-spike-results.md",
+      "concepts": ["agent", "control", "citations", "harness", "budget"]
+    },
+    {
+      "id": "model-choice",
+      "title": "Same tools, different search decisions",
+      "date": "2026-11-03",
+      "kind": "Live synthetic experiment",
+      "question": "Can model choice change investigation behavior without changing the search engine?",
+      "method": "Five unchanged questions per model: GPT-4.1 mini and Claude Sonnet 5.5 at low effort. Same tools, source contract and bounds; model-assisted blind rubric review.",
+      "finding": "Claude added “quiet” and found the quiet-room note on its first search. GPT missed it. All eight Claude citations resolved; GPT had nine malformed citations. One Claude answer still included an uncited factual explanation.",
+      "lesson": "Query formulation matters. A valid citation does not guarantee complete claim coverage or faithful interpretation.",
+      "limits": "One trial per case, different adapters and fixed model order. No deeper multi-step investigation benefit or production model choice was established.",
+      "source": "eve-model-comparison.md",
+      "concepts": ["reformulation", "citations", "grounding", "evaluation"]
+    },
+    {
+      "id": "investigation-design",
+      "title": "Design the decision before the agent",
+      "date": "2026-11-03",
+      "kind": "Design record",
+      "question": "How could a bounded investigation examine an apparent sleep change?",
+      "method": "Define four read-only tools, authored cases, evidence limits, answer validation and a strong scripted control before running models.",
+      "finding": "The design distinguishes recording-source changes, relevant owner notes, unexplained changes and no meaningful change. Both arms need two differently worded in-window searches before an unexplained conclusion.",
+      "lesson": "Specify the evidence needed for a conclusion and the rule for preferring the simpler control before seeing results.",
+      "limits": "A design is not runtime proof. Synthetic observation comparisons provide no diagnosis, health recommendation or demonstration of owner usefulness.",
+      "source": "agent-investigation-design.md",
+      "concepts": ["control", "provenance", "abstention", "budget"]
+    },
+    {
+      "id": "offline-replay",
+      "title": "What an offline replay can prove",
+      "date": "2026-11-03",
+      "kind": "Offline software checks",
+      "question": "Can the runner enforce its evidence and answer boundaries?",
+      "method": "Eight hand-authored replays: four cases across two arms. No provider request or credentials. Validate handles, source reads, numerical support, date windows and repair limits.",
+      "finding": "The replay exercises software contracts and the seam where a model could supply a different search query. The semantic query itself was written by a human.",
+      "lesson": "A passing replay proves the scripted software behavior it exercises; it does not demonstrate model reasoning.",
+      "limits": "Offline byte approximations are not provider token accounting. Structural checks do not establish that prose faithfully interprets a record.",
+      "source": "synthetic-investigation-replay.md",
+      "concepts": ["replay", "validation", "tokens", "harness"]
+    },
+    {
+      "id": "live-investigation",
+      "title": "Keep a negative result intact",
+      "date": "2026-11-03",
+      "kind": "Live synthetic experiment",
+      "question": "Does the bounded agent find useful additional evidence over the control?",
+      "method": "First eight-run attempt exposed output-byte and tool-format problems. A separately authorized corrected eight-run attempt preserved the cases and recorded usage.",
+      "finding": "In the corrected attempt both arms reached two authored-label-correct conclusions out of four. The agent had two structurally validated answers; the control had three, including an incorrect unexplained conclusion. Neither found the differently worded travel note.",
+      "lesson": "Agent advantage was not demonstrated. Structural validity, correct conclusions and semantic quality must be assessed separately.",
+      "limits": "Remaining input-byte guards confounded agent repairs; rejected control drafts lacked diagnostics. Post-run fixes do not retrospectively repair results. Owner ratings remain unverified; no further paid run is authorized by the record.",
+      "source": "synthetic-investigation-replay.md",
+      "concepts": ["validation", "harness", "grounding", "evaluation", "tokens"]
+    }
+  ],
+  "concepts": [
+    {
+      "id": "retrieval",
+      "title": "Retrieval and RAG",
+      "plain": "Retrieval selects candidate evidence. Retrieval-augmented generation then gives that evidence to a model to help produce an answer.",
+      "example": "A search finds the printer note; a later answer explains which ribbon it uses. The retrieval experiments stopped before answer generation.",
+      "why": "Evaluate retrieval quality and answer quality separately.",
+      "related": ["embeddings", "grounding"]
+    },
+    {
+      "id": "embeddings",
+      "title": "Embeddings and semantic search",
+      "plain": "An embedding represents text numerically so related meanings can be ranked by distance. Similarity is a retrieval signal, not a truth score.",
+      "example": "“Concentrate without people talking” can rank a note about a quiet room even without shared wording.",
+      "why": "Semantic neighbors can still be irrelevant to the requested fact.",
+      "related": ["retrieval", "abstention"]
+    },
+    {
+      "id": "hybrid",
+      "title": "Hybrid search and rank fusion",
+      "plain": "Hybrid search combines lexical and semantic result lists. Reciprocal-rank fusion combines rank positions rather than treating the original scores as comparable.",
+      "example": "The tested hybrid used a fusion constant of 60. Its rankings added no required evidence over semantic search in the initial run.",
+      "why": "Complexity needs a measured benefit; hybrid is an option to evaluate, not an automatic upgrade.",
+      "related": ["baseline", "recall"]
+    },
+    {
+      "id": "baseline",
+      "title": "A fair baseline",
+      "plain": "A baseline is a simpler credible approach used to judge whether a proposed change helps.",
+      "example": "Removing question words and OR-ing useful terms raised original-case keyword retrieval from 2/11 to 10/11 required passages.",
+      "why": "A weak comparator can make a sophisticated technique look better than its real advantage warrants.",
+      "related": ["control", "holdout"]
+    },
+    {
+      "id": "recall",
+      "title": "Recall, irrelevant context and precision",
+      "plain": "Recall asks how much required evidence was found. Precision asks how much returned evidence is relevant. More context can improve coverage while adding noise.",
+      "example": "The initial semantic top-ten results contained all 11 required passages among 100 returned passages across answerable questions. Those labels were required-passage labels, not exhaustive relevance judgments.",
+      "why": "Read coverage beside irrelevant context and workload; recall alone does not measure answer quality.",
+      "related": ["retrieval", "evaluation"]
+    },
+    {
+      "id": "agent",
+      "title": "Agent tool loop",
+      "plain": "A model chooses an available tool, receives the result and can choose another tool or finish. The runtime executes and bounds these choices.",
+      "example": "The printer investigation retried a read with the full source handle, then searched specifically for a missing price.",
+      "why": "Observable tool use proves a mechanism. Useful additional evidence is a separate outcome.",
+      "related": ["control", "budget", "reformulation"]
+    },
+    {
+      "id": "control",
+      "title": "Fixed control",
+      "plain": "A fixed control follows a predetermined evidence-gathering sequence rather than letting the model choose every step.",
+      "example": "Search once, read all hits, then answer; or follow a predefined sleep-comparison and note-search plan.",
+      "why": "A control should be strong enough that a tie supports keeping the simpler method.",
+      "related": ["baseline", "agent"]
+    },
+    {
+      "id": "reformulation",
+      "title": "Query reformulation",
+      "plain": "Rewrite a question into terms likely to appear in evidence, without changing what is being asked.",
+      "example": "Adding “quiet” found the blue-room note with the same keyword tool. That success happened on the first search, not after a long investigation.",
+      "why": "Some gains come from better tool inputs rather than a new retrieval engine.",
+      "related": ["agent", "embeddings"]
+    },
+    {
+      "id": "citations",
+      "title": "Resolvable citations",
+      "plain": "A citation identifies a specific source version and evidence range that software can resolve.",
+      "example": "The workshop contract used [document:revision:ordinal:Lstart-end]. A plausible-looking bracket with an incomplete handle failed the contract.",
+      "why": "A human guessing the intended source does not establish reproducible traceability.",
+      "related": ["provenance", "grounding"]
+    },
+    {
+      "id": "provenance",
+      "title": "Provenance and source freshness",
+      "plain": "Provenance records where evidence came from. Versioning and line ranges help preserve which evidence supported a claim at that time.",
+      "example": "A changed note needs an updated revision; deleting a note must remove its retrievable evidence.",
+      "why": "Correct text with stale or inaccessible evidence is difficult to inspect and trust.",
+      "related": ["citations", "validation"]
+    },
+    {
+      "id": "grounding",
+      "title": "Grounding and claim coverage",
+      "plain": "Grounding asks whether the evidence actually supports what the answer says. Claim coverage asks whether each factual assertion has suitable support.",
+      "example": "A battery citation can resolve while a separate archive explanation remains uncited. A nearby membership fee does not establish a delivery price.",
+      "why": "Correct syntax does not prove faithful interpretation or complete support.",
+      "related": ["citations", "validation"]
+    },
+    {
+      "id": "abstention",
+      "title": "Missing evidence and abstention",
+      "plain": "When support is insufficient, explain the search boundary and what was not found. Do not turn one empty search into a claim that the entire corpus contains nothing.",
+      "example": "“No note matched these two searches within this date window” is bounded. “Your notes contain no explanation” overstates the evidence.",
+      "why": "Related neighbors and empty results can both mislead; neither settles corpus-wide absence.",
+      "related": ["grounding", "retrieval"]
+    },
+    {
+      "id": "validation",
+      "title": "Structural validation and semantic review",
+      "plain": "Deterministic checks enforce explicit contracts such as valid handles, read permissions, dates and numeric support. Semantic review asks whether the words fairly interpret the evidence.",
+      "example": "The fixed investigation produced a structurally valid unexplained answer that missed a relevant travel note.",
+      "why": "A validation pass is one gate; it is not a quality, clinical or owner-acceptance verdict.",
+      "related": ["grounding", "evaluation"]
+    },
+    {
+      "id": "replay",
+      "title": "Offline replay versus live evidence",
+      "plain": "An offline replay uses authored responses to exercise software. A live run records actual model and provider behavior.",
+      "example": "A replay can test a repair path without proving that a model will select a useful repair.",
+      "why": "Label the kind of proof so passing software checks are not mistaken for demonstrated intelligence.",
+      "related": ["harness", "evaluation"]
+    },
+    {
+      "id": "harness",
+      "title": "The experiment harness",
+      "plain": "The harness assembles model inputs, runs tools, enforces bounds and records outputs. Its defects can distort the behavior being measured.",
+      "example": "An internal run label confused a question. A byte guard rejected paid responses that fit the provider token limit.",
+      "why": "Keep labels out of prompts, preserve safe failure diagnostics and disclose confounds rather than silently replacing results.",
+      "related": ["tokens", "replay"]
+    },
+    {
+      "id": "holdout",
+      "title": "Frozen cases and holdouts",
+      "plain": "Fix questions and expected outcomes before running. A holdout is reserved for evaluation rather than tuning.",
+      "example": "The retrieval-quality increment kept the original twelve questions and their development/holdout labels unchanged.",
+      "why": "Repeated tuning against a tiny familiar test set can overstate generality. Authored holdouts still are not independent real-world evidence.",
+      "related": ["evaluation", "baseline"]
+    },
+    {
+      "id": "evaluation",
+      "title": "Different layers of acceptance",
+      "plain": "Software correctness, evidence validity, semantic quality and owner usefulness answer different questions and need different evidence.",
+      "example": "A tool-count gate passed while exact citations failed. Later owner learning acceptance did not select a production framework or model.",
+      "why": "Report the layer that passed and leave other layers explicitly unverified.",
+      "related": ["validation", "holdout"]
+    },
+    {
+      "id": "latency",
+      "title": "Latency and tail behavior",
+      "plain": "Measure the complete pipeline and its stages. p50 is the median; p95 describes the slower end of the observed sample.",
+      "example": "Initial semantic warm p95 was 961.4 ms overall, while database warm p95 was 4.41 ms. Embedding work dominated this small run.",
+      "why": "Optimize the measured bottleneck. Stage percentiles cannot simply be added to obtain total p95.",
+      "related": ["embeddings", "tokens"]
+    },
+    {
+      "id": "tokens",
+      "title": "Tokens, bytes and accounting",
+      "plain": "Tokens are model-specific text units; bytes measure encoded data size. A byte approximation is not exact provider token accounting.",
+      "example": "The live investigation rejected some valid-length outputs under an offline byte check. Paid boundaries were moved to provider token preflight and actual usage.",
+      "why": "Use the right units and distinguish rate-derived estimates from reconciled charges.",
+      "related": ["harness", "budget"]
+    },
+    {
+      "id": "budget",
+      "title": "Bounds and spend reservation",
+      "plain": "Bound requests, tools, evidence, time and cost. Reserve a conservative request allowance before sending; settle against usage afterward.",
+      "example": "An unknown paid outcome retained its reservation and stopped the comparison rather than being treated as a free failure.",
+      "why": "A normal model stop, a settled output limit and uncertain billing require different host behavior. Historical grants do not authorize a new run.",
+      "related": ["agent", "tokens"]
+    },
+    {
+      "id": "exact-search",
+      "title": "Exact search versus approximate indexes",
+      "plain": "Exact vector search ranks all eligible candidates. An approximate index trades recall for speed and has its own tuning and filtering behavior.",
+      "example": "The small cloud experiment used exact cosine search. Database time was already only a few milliseconds, so it supplied no measured reason to add HNSW.",
+      "why": "Benchmark the small simple path before introducing an index. See the recorded research for implementation-specific details.",
+      "related": ["embeddings", "latency"]
+    },
+    {
+      "id": "domain-boundaries",
+      "title": "Observation, inference and recommendation",
+      "plain": "A recorded observation, a possible explanation and advice to act are different kinds of statement. Preserve their evidence and uncertainty boundaries.",
+      "example": "A recording-source change can explain an apparent measurement shift without establishing a physiological change. A genetic association does not by itself establish a diagnosis.",
+      "why": "The investigation work examines bounded evidence; it does not establish clinical validity or authorize treatment advice.",
+      "related": ["provenance", "grounding"]
+    }
+  ]
+}
