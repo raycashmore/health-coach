@@ -1,5 +1,7 @@
 # Integrated lab context baseline
 
+Start with the [plain-English one-page summary](lab-context-summary.md).
+
 4 November 2026. Implementation evidence for [RAY-238](https://linear.app/cashmore/issue/RAY-238).
 Linear owns the design, proposed evaluation cases and remaining execution decisions.
 
