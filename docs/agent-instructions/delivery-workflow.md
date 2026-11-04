@@ -54,6 +54,10 @@ rather than silently running them or substituting synthetic proof.
 
 ## Publication and migrations
 
+Run `node scripts/publication-preflight.mjs` after refreshing remote refs for a
+read-only report of local work, open PRs and branch deployment configuration.
+The report does not inspect remote deployment settings.
+
 Before pushing or opening a PR, inspect the current workflow events/conditions,
 deployment settings and actual target. Explain material automatic effects and
 apply existing authority to them. Use the actual configuration and read-only

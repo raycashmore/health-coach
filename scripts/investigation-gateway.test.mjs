@@ -353,3 +353,49 @@ test('a known preflight input limit stops only its run with no paid reservation'
   assert.equal(arm.metrics().requests, 0);
   assert.equal(arm.metrics().costUsd, 0);
 });
+
+test('multi-step Gateway repair preserves token accounting and safe diagnostics for large contexts', async () => {
+  const fixture = fixtureTransport();
+  const events = [];
+  let rejected = false;
+  let sawLargeRepair = false;
+  const group = comparison(
+    async (url, init) => {
+      const response = await fixture.transport(url, init);
+      if (url !== endpoint) return response;
+      const body = JSON.parse(init.body);
+      const context = JSON.parse(body.messages[0].content);
+      const result = await response.json();
+      if (context.errors.length) {
+        sawLargeRepair = Buffer.byteLength(init.body) > 8000;
+        assert.deepEqual(context.errors, ['answer-schema']);
+      }
+      if (result.content[0].name === 'finish_investigation' && !rejected) {
+        rejected = true;
+        result.content[0].input = { invalid: 'synthetic rejected draft '.repeat(400) };
+      }
+      return Response.json(result);
+    },
+    async (event) => {
+      events.push(event);
+    }
+  );
+  const arm = group.requestFor('agent:missing');
+  const result = await runInvestigation({
+    fixture: syntheticCase('missing'),
+    request: arm.request,
+    execution: 'gateway'
+  });
+  assert.equal(result.status, 'validated');
+  assert.ok(result.metrics.tools > 1);
+  assert.equal(sawLargeRepair, true);
+  assert.deepEqual(result.metrics.validationFailures, [['answer-schema']]);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic rejected draft/);
+  assert.equal(group.stopped, false);
+  assert.equal(events.filter((event) => event.status === 'completed').length, arm.metrics().requests);
+  assert.ok(
+    arm
+      .metrics()
+      .usage.every((row) => row.status === 'completed' && row.finishReason === 'tool_use' && row.toolNames.length === 1)
+  );
+});
