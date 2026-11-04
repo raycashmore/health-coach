@@ -243,7 +243,10 @@ that says "your notes don't mention anything" fails the rubric.
 **Control:** scripted follow-up using the same tools, answer contract,
 validator and single repair. Always get the comparison; if sources varied, get
 sleep daily values for the last seven days; search notes in the note window
-using the question's words; read every hit; answer. This is the issue's
+using the question's words, then a fixed differently worded query
+("sleep late night tired"); read every distinct hit; answer. Both arms require
+two differently worded in-window searches before an unexplained conclusion
+(owner clarification in the RAY-245 delivery chat, 3 November 2026). This is the issue's
 smaller alternative and is deliberately strong.
 
 **Cases (synthetic, authored labels fixed before the run):**
