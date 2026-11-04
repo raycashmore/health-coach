@@ -81,6 +81,9 @@ created PR to the chat through the app tool.
 
 ## Close out
 
+Apply the [learning companion maintenance trigger](../learning/README.md#maintenance-trigger)
+before reporting completion.
+
 Review the scoped diff and checks, record the three
 [verdicts](product-oversight.md#accept-the-outcome), then save one
 [tracker checkpoint](issue-tracker.md#checkpoint). Use
