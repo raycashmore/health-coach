@@ -172,3 +172,41 @@ The model also distinguished the fixture's collection/note dates from its newer
 publication time. Historical replay would need a publication available as of the
 question, not merely old authored dates. This toy transport check does not prove
 that historical availability contract or private usefulness.
+
+## Retro safeguards
+
+The outbound privacy regression now runs the real Langfuse span processor and
+its default compressed OTLP/HTTP exporter against a loopback receiver. It checks
+the complete body for synthetic sensitive canaries, validates the explicit
+service resource and scope, and checks that events/links/status messages carry no
+content. An environment-release canary verifies that the configured safe release
+overrides SDK environment defaults. This test makes no remote request and needs
+no credentials. It runs in the existing web test suite under `pnpm verify`.
+
+CI now invokes the existing `pnpm lab-context:verify` command as well. This checks
+the SQL lifecycle and owner isolation in its own disposable container; it remains
+separate from the Supabase verification command that resets its target database.
+The workflow change is local until published; no hosted CI result is claimed.
+
+For a later authorized read-back audit, use an absolute path to the private key
+file and the saved single-call live receipt:
+
+```sh
+HC_LANGFUSE_KEYS_FILE=/absolute/path/to/private-keys.env pnpm lab-context:audit
+```
+
+The default receipt is the ignored `private-data/lab-context-live/report.json`.
+Pass `--report /absolute/path/to/report.json` for another receipt. The command
+verifies project identity before reading observations, then checks hierarchy,
+model/usage, metadata, basic/trace-context privacy and expected numeric score
+bindings. Model fields on non-generation operations must be empty. It follows
+continuation cursors even after an empty page, rejects repeated cursors and bounds
+the number of pages/rows. It checks a previous trace's deletion when that ID is in
+the receipt. The CLI reader is shared with live-run project verification.
+
+The audit prints only counts, fixed failure categories and deletion state. Exit
+codes are 0 for passed, 2 for pending deletion and 1 for a failed/unavailable audit.
+It makes only project/observation/score list requests; it never generates, exports,
+deletes or changes a budget ledger. Tests use mocked CLI responses, including
+error envelopes and paginated deletion results. No additional live model or
+Langfuse call was made while implementing these safeguards.

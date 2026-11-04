@@ -16,6 +16,10 @@ where the selected task depends on them. Carry existing grants forward with
 their limits; an unknown fact blocks only dependent work. Keep synthetic proof
 and any later private acceptance as separate gates.
 
+When selecting a generation model, run `pnpm ai:models` and check the candidate's
+current provider documentation before recommending it. Record the model ID,
+reasoning setting and evidence date in the existing brief.
+
 ## Build and verify
 
 Use the existing checkout. Substantial work belongs on a feature branch; create
@@ -64,8 +68,9 @@ apply existing authority to them. Use the actual configuration and read-only
 checks to establish the publication boundary.
 
 - `.github/workflows/ci.yml` runs on pull requests and main pushes. It installs
-  dependencies, runs disposable-runner Supabase verification, `pnpm verify` and
-  `pnpm build`. These checks alone do not establish hosted behavior.
+  dependencies, runs disposable-runner Supabase verification, `pnpm verify`,
+  `pnpm lab-context:verify` and `pnpm build`. These checks alone do not establish
+  hosted behavior.
 - `.github/workflows/deploy-supabase-migrations.yml` is manually dispatched with
   confirmation `deploy`, targets the `production` environment, links Supabase,
   performs a dry run and then pushes migrations. It does not reset production.

@@ -62,7 +62,9 @@ At handoff, pause, material direction/acceptance change or closeout:
 4. File ideas for new work as Backlog issues labelled `needs-triage`, within
    tracker write authority, for the next grooming.
 
-Use exact patches where supported; re-read after an anchor failure. Check every
+Use exact patches where supported; build anchors from returned text, because
+Linear can rewrite issue references in prose. Format literal branch names as
+code. Re-read after an anchor failure. Check every
 write result before dependent updates or claims of success. If saving fails,
 report the stale record and preserve a safe chat handoff. Routine chat updates
 during an uninterrupted build need no duplicate tracker narration.

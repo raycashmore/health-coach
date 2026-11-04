@@ -787,7 +787,9 @@
               <dt>What we tried</dt>
               <dd>
                 Six invented local Postgres cases with fake generation, then one authorized Terra call with
-                metadata-only Langfuse export and CLI read-back audit.
+                metadata-only Langfuse export and CLI read-back audit. Retro safeguards exercise the actual compressed
+                SDK exporter against loopback and mock the read-only paginated audit; SQL verification is now wired into
+                CI.
               </dd>
               <dt>What happened</dt>
               <dd>
@@ -798,7 +800,9 @@
               <dt>What it teaches</dt>
               <dd>
                 Test source lifecycle and input limits before judging answers. Audit received telemetry resources as
-                well as application fields: the SDK can add identifying metadata outside a field allowlist.
+                well as application fields: the SDK can add identifying metadata outside a field allowlist. Capture the
+                full outbound payload locally before live export; reuse a tested read-back command rather than
+                reconstructing an audit each time.
               </dd>
             </dl>
             <details>
@@ -1449,8 +1453,9 @@
               <a href="#integrated-lab-context">integrated lab-context contract check</a> joins structured evidence and
               full-text notes without a real model call. Local lifecycle checks were followed by one live synthetic
               Terra/Langfuse transport audit. The received trace exposed an SDK service-resource path; the original
-              trace and scores were deleted and safe metadata replayed after setting a generic service name. Answer
-              usefulness remains unproved.
+              trace and scores were deleted and safe metadata replayed after setting a generic service name. The retro
+              added a local full-payload exporter test, wired SQL checks into CI and made trace auditing repeatable.
+              Answer usefulness remains unproved.
             </p>
             <p>
               Current open questions: Will bounded investigation add useful evidence on representative tasks? Which

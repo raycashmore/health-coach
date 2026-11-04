@@ -1,47 +1,22 @@
 import { readFile } from 'node:fs/promises';
-import { parseEnv, promisify } from 'node:util';
-import { execFile } from 'node:child_process';
+import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { gateway, wrapLanguageModel } from 'ai';
 import { defaultContextModel } from '../lib/lab-context/generate';
 import { langfuseRecorder } from '../lib/lab-context/telemetry';
 import { withLiveBudget } from '../lib/lab-context/live-budget';
 import type { ContextTrace } from '../lib/lab-context/run';
-import { z } from 'zod';
+import { langfuseReader, readLangfuseAccess } from './langfuse-reader';
 
-const exec = promisify(execFile);
 export async function prepareLiveContext() {
   const keysFile = process.env.HC_LANGFUSE_KEYS_FILE,
     projectId = process.env.HC_LANGFUSE_PROJECT_ID;
   const allowanceUsd = Number(process.env.HC_LAB_CONTEXT_ALLOWANCE_USD);
   if (!keysFile || !projectId || !Number.isFinite(allowanceUsd) || allowanceUsd <= 0 || allowanceUsd > 5)
     throw new Error('live-configuration-required');
-  const text = await readFile(keysFile, 'utf8');
-  const publicKeys = text.match(/\bpk-lf-[a-zA-Z0-9-]+/g) ?? [],
-    secretKeys = text.match(/\bsk-lf-[a-zA-Z0-9-]+/g) ?? [];
-  if (new Set(publicKeys).size !== 1 || new Set(secretKeys).size !== 1) throw new Error('langfuse-key-pair-required');
-  const baseUrl = 'https://us.cloud.langfuse.com';
-  const config = { baseUrl, publicKey: publicKeys[0]!, secretKey: secretKeys[0]! };
-  let projectMatches = false;
-  try {
-    const { stdout } = await exec('npx', ['--yes', 'langfuse-cli', 'api', 'projects', 'list', '--json'], {
-      env: {
-        ...process.env,
-        LANGFUSE_BASE_URL: baseUrl,
-        LANGFUSE_HOST: baseUrl,
-        LANGFUSE_PUBLIC_KEY: config.publicKey,
-        LANGFUSE_SECRET_KEY: config.secretKey
-      },
-      timeout: 30_000
-    });
-    const envelope = z.object({ body: z.unknown().optional() }).passthrough().parse(JSON.parse(stdout));
-    const body = typeof envelope.body === 'string' ? JSON.parse(envelope.body) : (envelope.body ?? envelope);
-    const response = z.object({ data: z.array(z.object({ id: z.string() })) }).parse(body);
-    projectMatches = response.data?.some((project) => project.id === projectId) ?? false;
-  } catch {
-    throw new Error('langfuse-project-check-failed');
-  }
-  if (!projectMatches) throw new Error('langfuse-project-mismatch');
+  const config = await readLangfuseAccess(keysFile);
+  const baseUrl = config.baseUrl;
+  await langfuseReader(config).verifyProject(projectId);
   const localEnv = parseEnv(await readFile(new URL('../.env.local', import.meta.url), 'utf8'));
   if (!localEnv.AI_GATEWAY_API_KEY) throw new Error('gateway-key-required');
   process.env.AI_GATEWAY_API_KEY = localEnv.AI_GATEWAY_API_KEY;

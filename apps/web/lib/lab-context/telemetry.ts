@@ -113,19 +113,26 @@ export function operationalRecorder(processor: SpanProcessor) {
   };
 }
 
-export function langfuseRecorder(config: { baseUrl: string; publicKey: string; secretKey: string }) {
+type LangfuseConfig = { baseUrl: string; publicKey: string; secretKey: string };
+
+// Shared by the recorder and the loopback wire test; this creates the real SDK
+// transport. External recorder destinations are validated separately below.
+export function contextSpanProcessor(config: LangfuseConfig) {
+  return new LangfuseSpanProcessor({
+    ...config,
+    environment: 'lab-context-experiment',
+    release: 'lab-context-v1',
+    mediaUploadEnabled: false,
+    shouldExportSpan: ({ otelSpan }) => otelSpan.instrumentationScope.name === 'health-coach-lab-context'
+  });
+}
+
+export function langfuseRecorder(config: LangfuseConfig) {
   const url = new URL(config.baseUrl);
   if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash)
     throw new Error('invalid-langfuse-destination');
   if (!config.publicKey || !config.secretKey) throw new Error('langfuse-credentials-required');
-  const recorder = operationalRecorder(
-    new LangfuseSpanProcessor({
-      ...config,
-      environment: 'lab-context-experiment',
-      mediaUploadEnabled: false,
-      shouldExportSpan: ({ otelSpan }) => otelSpan.instrumentationScope.name === 'health-coach-lab-context'
-    })
-  );
+  const recorder = operationalRecorder(contextSpanProcessor(config));
   const client = new LangfuseClient({ ...config });
   return {
     ...recorder,

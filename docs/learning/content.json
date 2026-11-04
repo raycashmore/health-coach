@@ -98,9 +98,9 @@
       "date": "2026-11-04",
       "kind": "Local contracts and live synthetic transport",
       "question": "Can labs, dated activity and full-text notes form one bounded, attributable answer input?",
-      "method": "Six invented local Postgres cases with fake generation, then one authorized Terra call with metadata-only Langfuse export and CLI read-back audit.",
+      "method": "Six invented local Postgres cases with fake generation, then one authorized Terra call with metadata-only Langfuse export and CLI read-back audit. Retro safeguards exercise the actual compressed SDK exporter against loopback and mock the read-only paginated audit; SQL verification is now wired into CI.",
       "finding": "Local contracts passed. One live answer and four Langfuse observations plus three numeric scores arrived. A received SDK service resource exposed a local executable path; the original trace and scores were deleted, a generic resource fixed, and saved metadata replayed without another model call.",
-      "lesson": "Test source lifecycle and input limits before judging answers. Audit received telemetry resources as well as application fields: the SDK can add identifying metadata outside a field allowlist.",
+      "lesson": "Test source lifecycle and input limits before judging answers. Audit received telemetry resources as well as application fields: the SDK can add identifying metadata outside a field allowlist. Capture the full outbound payload locally before live export; reuse a tested read-back command rather than reconstructing an audit each time.",
       "limits": "One toy live case demonstrates transport, not private relevance, claim support or owner usefulness. Scores are retrieval/citation checks. No vector comparison, live dataset, hosted authentication or Android/Mac-off flow was exercised.",
       "source": "lab-context-baseline.md",
       "concepts": ["retrieval", "provenance", "citations", "validation", "evaluation", "replay"]
