@@ -14,6 +14,7 @@
     "@langfuse/client": "6.1.1",
     "@langfuse/otel": "6.1.1",
     "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/resources": "2.11.0",
     "@opentelemetry/sdk-trace": "2.11.0",
     "@supabase/supabase-js": "^2.112.3",
     "ai": "^7.0.155",

@@ -776,7 +776,7 @@
             <a class="source" href="../research/synthetic-investigation-replay.md">Read the original record →</a>
           </article>
           <article id="integrated-lab-context" class="entry experiment" data-view="experiments">
-            <p class="meta">Local synthetic contract verification · 2026-11-04</p>
+            <p class="meta">Local contracts and live synthetic transport · 2026-11-04</p>
             <h2 class="entry-title">
               <a href="#integrated-lab-context">One evidence path before a real model call</a>
             </h2>
@@ -786,26 +786,27 @@
             <dl>
               <dt>What we tried</dt>
               <dd>
-                Six invented integrated cases in a fresh disposable Postgres database, with fake generation and a
-                recording-only trace exporter. Exercise correction, deletion, missing coverage and owner isolation.
+                Six invented local Postgres cases with fake generation, then one authorized Terra call with
+                metadata-only Langfuse export and CLI read-back audit.
               </dd>
               <dt>What happened</dt>
               <dd>
-                The local path passed its contract checks. The model received bounded evidence; exported spans contained
-                only allowlisted operational metadata. Citation and source-lifecycle checks ran without paid calls or
-                private data.
+                Local contracts passed. One live answer and four Langfuse observations plus three numeric scores
+                arrived. A received SDK service resource exposed a local executable path; the original trace and scores
+                were deleted, a generic resource fixed, and saved metadata replayed without another model call.
               </dd>
               <dt>What it teaches</dt>
               <dd>
-                Test evidence freshness, input limits and trace collection boundaries before judging generated answers.
-                A fake model proves plumbing contracts, not usefulness or grounded interpretation.
+                Test source lifecycle and input limits before judging answers. Audit received telemetry resources as
+                well as application fields: the SDK can add identifying metadata outside a field allowlist.
               </dd>
             </dl>
             <details>
               <summary>Limits and interpretation</summary>
               <p>
-                No Terra call, real Langfuse project, representative owner case, hosted authentication or
-                Android/Mac-off flow was exercised. Evaluation labels remain drafts; no vector comparison was run.
+                One toy live case demonstrates transport, not private relevance, claim support or owner usefulness.
+                Scores are retrieval/citation checks. No vector comparison, live dataset, hosted authentication or
+                Android/Mac-off flow was exercised.
               </p>
             </details>
             <p class="connections">
@@ -1446,8 +1447,10 @@
               The companion brings the recorded experiments together. The recurring lesson is to distinguish candidate
               evidence, valid structure, semantic support and owner usefulness. The
               <a href="#integrated-lab-context">integrated lab-context contract check</a> joins structured evidence and
-              full-text notes without a real model call. It demonstrates lifecycle and privacy boundaries locally;
-              answer usefulness and live trace ingestion remain unproved.
+              full-text notes without a real model call. Local lifecycle checks were followed by one live synthetic
+              Terra/Langfuse transport audit. The received trace exposed an SDK service-resource path; the original
+              trace and scores were deleted and safe metadata replayed after setting a generic service name. Answer
+              usefulness remains unproved.
             </p>
             <p>
               Current open questions: Will bounded investigation add useful evidence on representative tasks? Which

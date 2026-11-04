@@ -4,6 +4,7 @@ import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import { LangfuseClient } from '@langfuse/client';
 import { z } from 'zod';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import type { ContextTrace } from './run';
 
 // Reconstruct only an explicit allowlist, even when callers pass extra fields.
@@ -33,12 +34,15 @@ const safeTraceSchema = z.object({
 export function operationalRecorder(processor: SpanProcessor) {
   // Deliberately not registered globally: no HTTP, DB, AI SDK or third-party
   // instrumentation can accidentally export health content through this provider.
-  const provider = new TracerProvider({ spanProcessors: [processor] });
+  const provider = new TracerProvider({
+    resource: resourceFromAttributes({ 'service.name': 'health-coach-lab-context' }),
+    spanProcessors: [processor]
+  });
   const tracer = provider.getTracer('health-coach-lab-context', '1');
   return {
-    async record(raw: ContextTrace) {
+    async record(raw: ContextTrace, replay?: { executionEndMs: number }) {
       const safe = safeTraceSchema.parse(raw);
-      const end = Date.now(),
+      const end = replay ? z.number().finite().nonnegative().parse(replay.executionEndMs) : Date.now(),
         start = end - safe.durationMs;
       const shared = {
         'langfuse.trace.name': 'lab-context-answer',
@@ -46,7 +50,8 @@ export function operationalRecorder(processor: SpanProcessor) {
         'langfuse.observation.metadata.version': safe.version,
         'langfuse.observation.metadata.corpusRevision': safe.corpusRevision ?? 'unavailable',
         'langfuse.observation.metadata.modelId': safe.modelId,
-        'langfuse.observation.metadata.reasoning': safe.reasoning
+        'langfuse.observation.metadata.reasoning': safe.reasoning,
+        'langfuse.observation.metadata.delivery': replay ? 'metadata-replay' : 'original'
       };
       const root = tracer.startSpan(
         'lab-context-answer',

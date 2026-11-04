@@ -123,6 +123,7 @@ describe('integrated lab context baseline', () => {
       const spans = exporter.getFinishedSpans();
       const root = spans.find((span) => span.name === 'lab-context-answer')!;
       expect(spans).toHaveLength(4);
+      expect(spans.every((span) => span.resource.attributes['service.name'] === 'health-coach-lab-context')).toBe(true);
       expect(
         spans
           .filter((span) => span.name !== root.name)

@@ -15,17 +15,24 @@ import { citationScore, retrievalScores } from '../lib/lab-context/evaluate';
 import { defaultContextModel } from '../lib/lab-context/generate';
 import { packEvidence, structuredEvidence } from '../lib/lab-context/evidence';
 import { syntheticRequest, fakeContextModel } from './lab-context-fixtures';
+import { prepareLiveContext } from './live-lab-context';
 
 const exec = promisify(execFile);
 const container = `hc-context-${randomUUID()}`;
 const directory = await mkdtemp(path.join(tmpdir(), 'hc-context-'));
-const reportDirectory = new URL('../../../private-data/lab-context-synthetic/', import.meta.url);
+const liveRequested = process.argv.includes('--live-synthetic');
+const reportDirectory = new URL(
+  liveRequested ? '../../../private-data/lab-context-live/' : '../../../private-data/lab-context-synthetic/',
+  import.meta.url
+);
 const exporter = new InMemorySpanExporter();
 const recorder = operationalRecorder(new SimpleSpanProcessor({ exporter }));
 let admin: ReturnType<typeof postgres> | undefined;
 let sql: ReturnType<typeof postgres> | undefined;
 let started = false;
+let live: Awaited<ReturnType<typeof prepareLiveContext>> | undefined;
 try {
+  if (liveRequested) live = await prepareLiveContext();
   await exec('docker', [
     'run',
     '--detach',
@@ -79,7 +86,9 @@ try {
     await anonymous.end();
   }
   const reports = [];
-  for (const scenario of ['complete', 'missing-activity', 'undated-notes', 'conflict', 'correction', 'paraphrase']) {
+  for (const scenario of live
+    ? ['complete']
+    : ['complete', 'missing-activity', 'undated-notes', 'conflict', 'correction', 'paraphrase']) {
     const request = syntheticRequest();
     const store = contextStore(sql, request.ownerId);
     if (scenario === 'missing-activity') request.activity.days = [];
@@ -139,10 +148,11 @@ try {
     });
     const result = await runContextBaseline(request, {
       store,
-      model: fakeContextModel(),
-      modelId: 'test/fake',
+      model: live?.model ?? fakeContextModel(),
+      modelId: live?.modelId ?? 'test/fake',
       record: async (trace) => {
         await recorder.record(trace);
+        if (live) await live.record(trace);
       }
     });
     const retrieved = result.evidence.packet.notes.sections.map((section) => section.id);
@@ -169,11 +179,16 @@ try {
       return tx`select document_id from hc_context.tombstones`;
     });
     assert.equal(tombstones.length, removed.length);
+    const citationValidity = citationScore(result.answer, result.evidence.evidenceIds);
+    if (live) {
+      assert.equal(result.telemetry, 'recorded');
+      await live.scores({ ...scores, citationValidity });
+    }
     reports.push({
       scenario,
       evidence: result.evidence.packet,
       answer: result.answer,
-      scores: { ...scores, citationValidity: citationScore(result.answer, result.evidence.evidenceIds) },
+      scores: { ...scores, citationValidity },
       trace: result.trace,
       reviewStatus: result.reviewStatus
     });
@@ -203,17 +218,19 @@ try {
     spanId: span.spanContext().spanId,
     parentSpanId: span.parentSpanContext?.spanId
   }));
-  assert.equal(spans.length, 24);
+  assert.equal(spans.length, live ? 4 : 24);
   assert(!JSON.stringify(spans).includes('routine changed'));
   await mkdir(reportDirectory, { recursive: true, mode: 0o700 });
   await writeFile(
     new URL('report.json', reportDirectory),
     JSON.stringify(
       {
-        provenance:
-          'Synthetic contract verification with fake generation; not an owner evaluation or model-quality result.',
+        provenance: live
+          ? 'Synthetic integrated transport check with live Terra generation and metadata-only Langfuse export; not owner/private usefulness evidence.'
+          : 'Synthetic contract verification with fake generation; not an owner evaluation or model-quality result.',
         configuredLiveCandidate: defaultContextModel,
-        actualModel: 'test/fake',
+        actualModel: live?.modelId ?? 'test/fake',
+        liveReceipt: live?.receipt(),
         reports,
         spans
       },
@@ -222,16 +239,30 @@ try {
     ),
     { mode: 0o600 }
   );
-  console.log(
-    'Six integrated synthetic cases passed: FTS, publication/correction/deletion, isolation, fake generation and safe traces.'
-  );
-  console.log(
-    'Local inspectable report: private-data/lab-context-synthetic/report.json. No model or Langfuse network calls.'
-  );
+  if (live)
+    console.log(
+      'One live synthetic integrated check completed; receipt/report saved in ignored private-data/lab-context-live/report.json. Server receipt requires independent API audit.'
+    );
+  else
+    console.log(
+      'Six integrated synthetic cases passed: FTS, publication/correction/deletion, isolation, fake generation and safe traces.'
+    );
+  if (!live)
+    console.log(
+      'Local inspectable report: private-data/lab-context-synthetic/report.json. No model or Langfuse network calls.'
+    );
+} catch (error) {
+  const safe = error instanceof Error && /^[a-z]+(?:-[a-z]+)+$/.test(error.message) ? error.message : 'check-failed';
+  console.error(`Lab context check stopped: ${safe}`);
+  process.exitCode = 1;
 } finally {
-  await recorder.shutdown();
-  await sql?.end();
-  await admin?.end();
-  if (started) await exec('docker', ['rm', '--force', '--volumes', container]);
-  await rm(directory, { recursive: true, force: true });
+  const connections = await Promise.allSettled([live?.shutdown(), recorder.shutdown(), sql?.end(), admin?.end()]);
+  const resources = await Promise.allSettled([
+    ...(started ? [exec('docker', ['rm', '--force', '--volumes', container])] : []),
+    rm(directory, { recursive: true, force: true })
+  ]);
+  if ([...connections, ...resources].some((result) => result.status === 'rejected')) {
+    console.error('Lab context cleanup incomplete; inspect this run’s synthetic container and local state.');
+    process.exitCode = 1;
+  }
 }

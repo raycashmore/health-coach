@@ -96,16 +96,17 @@ perfect score. Claim support, conflicts/gaps, comprehension and usefulness need
 human review. Live datasets, evaluator labels and expected answers are still
 proposals in Linear; none was created in Langfuse.
 
-The Langfuse adapter has not been exercised against a real project. Export flush
-does not prove server acceptance. The later authorized check must fetch the actual
-observations/scores and audit them against fresh best practices. No health content
-is needed for that first transport audit.
+The first authorized live transport check below fetched the actual observations
+and scores. Export flush alone still does not prove server acceptance; keep the
+read-back audit when changing instrumentation. Prompts, answers and reasoning
+content intentionally remain local under the metadata-only policy.
 
 ## What remains unproved
 
-No Terra answer quality, representative private usefulness, live Langfuse
-ingestion, hosted authentication, Android/Mac-off operation or clinical validity
-was demonstrated. No vectors were added. The later vector experiment must keep
+Representative private usefulness, broader Terra answer quality, hosted
+authentication, Android/Mac-off operation and clinical validity remain unproved.
+The live check below establishes only bounded synthetic generation and trace
+transport. No vectors were added. The later vector experiment must keep
 structured snapshots, corpus, chunks, cases, model, reasoning and prompt fixed,
 then report misses and regressions as well as improvements.
 
@@ -122,3 +123,52 @@ References: [AI SDK generation](https://ai-sdk.dev/docs/reference/ai-sdk-core/ge
 [Terra model](https://developers.openai.com/api/docs/models/gpt-6.1-terra),
 [Langfuse current ingestion](https://langfuse.com/integrations/native/opentelemetry/migration-to-v4),
 [Langfuse scores](https://langfuse.com/docs/evaluation/evaluation-methods/scores-via-sdk).
+
+## First live transport check
+
+4 November 2026. The owner selected a Langfuse US project and a US$5 total model
+allowance. Exact destination identity, keys and trace receipts remain in private
+local storage; no account identifiers or credentials are recorded here. Project
+identity was verified through the Langfuse CLI before export.
+
+One integrated synthetic case used real GPT-6.1 Terra at medium reasoning through
+AI Gateway, with Standard OpenAI routing and no retries. A new durable local ledger
+reserved US$0.10 before dispatch against the US$5 cap. It retains reservations on
+all outcomes and blocks further calls after an uncertain outcome. Two budget
+regressions verify pre-dispatch reservation/exhaustion and uncertain-call blocking.
+An independent engineering review supported execution after cleanup was hardened
+so exporter failure cannot skip database/container cleanup.
+
+The call returned a structured, cited answer with 738 input and 473 total output
+tokens, including any reasoning. The published Standard-rate estimate is
+US$0.003103, before cache/provider billing adjustments; this is not an invoice.
+The ledger retains US$0.10. No additional model call was needed.
+
+The Langfuse read-back audit found four observations with the expected hierarchy:
+CHAIN root, TOOL structured read, RETRIEVER full-text search, and GENERATION with
+Terra, medium reasoning, token usage and labelled estimated cost. Three numeric
+scores arrived: required-passage recall 1, irrelevant sections 0, citation validity
+
+1. They describe this toy case, not claim support or owner usefulness. No dataset
+   was created.
+
+A second inspection caught an SDK default outside the application allowlist:
+OpenTelemetry's default service name included a local executable path. We set an
+explicit generic service resource, added a resource-name regression, requested deletion of the
+affected trace and its scores, and re-exported the saved operational metadata.
+The replacement preserves the original execution end time and is labelled
+metadata-replay. This made no model call. A fresh CLI read verified the replacement has the generic service name, all four
+observations, all three scores, and no input/output or source content. The
+original deletion completed asynchronously; a final modern-API read returned no
+original observations or scores and no continuation cursor.
+See [Langfuse deletion timing](https://langfuse.com/docs/administration/data-deletion).
+
+Lesson: a field allowlist is not sufficient if the telemetry SDK adds identifying
+resource metadata. Audit the received trace, including SDK resource attributes.
+Fresh Langfuse best-practice guidance informed the audit; omitted content and
+reasoning text are deliberate privacy boundaries rather than accidental gaps.
+
+The model also distinguished the fixture's collection/note dates from its newer
+publication time. Historical replay would need a publication available as of the
+question, not merely old authored dates. This toy transport check does not prove
+that historical availability contract or private usefulness.

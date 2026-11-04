@@ -96,12 +96,12 @@
       "id": "integrated-lab-context",
       "title": "One evidence path before a real model call",
       "date": "2026-11-04",
-      "kind": "Local synthetic contract verification",
+      "kind": "Local contracts and live synthetic transport",
       "question": "Can labs, dated activity and full-text notes form one bounded, attributable answer input?",
-      "method": "Six invented integrated cases in a fresh disposable Postgres database, with fake generation and a recording-only trace exporter. Exercise correction, deletion, missing coverage and owner isolation.",
-      "finding": "The local path passed its contract checks. The model received bounded evidence; exported spans contained only allowlisted operational metadata. Citation and source-lifecycle checks ran without paid calls or private data.",
-      "lesson": "Test evidence freshness, input limits and trace collection boundaries before judging generated answers. A fake model proves plumbing contracts, not usefulness or grounded interpretation.",
-      "limits": "No Terra call, real Langfuse project, representative owner case, hosted authentication or Android/Mac-off flow was exercised. Evaluation labels remain drafts; no vector comparison was run.",
+      "method": "Six invented local Postgres cases with fake generation, then one authorized Terra call with metadata-only Langfuse export and CLI read-back audit.",
+      "finding": "Local contracts passed. One live answer and four Langfuse observations plus three numeric scores arrived. A received SDK service resource exposed a local executable path; the original trace and scores were deleted, a generic resource fixed, and saved metadata replayed without another model call.",
+      "lesson": "Test source lifecycle and input limits before judging answers. Audit received telemetry resources as well as application fields: the SDK can add identifying metadata outside a field allowlist.",
+      "limits": "One toy live case demonstrates transport, not private relevance, claim support or owner usefulness. Scores are retrieval/citation checks. No vector comparison, live dataset, hosted authentication or Android/Mac-off flow was exercised.",
       "source": "lab-context-baseline.md",
       "concepts": ["retrieval", "provenance", "citations", "validation", "evaluation", "replay"]
     }
