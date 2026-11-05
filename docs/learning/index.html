@@ -775,6 +775,54 @@
             </p>
             <a class="source" href="../research/synthetic-investigation-replay.md">Read the original record →</a>
           </article>
+          <article id="integrated-lab-context" class="entry experiment" data-view="experiments">
+            <p class="meta">Local contracts and live synthetic transport · 2026-11-04</p>
+            <h2 class="entry-title">
+              <a href="#integrated-lab-context">One evidence path before a real model call</a>
+            </h2>
+            <p class="question">
+              Can labs, dated activity and full-text notes form one bounded, attributable answer input?
+            </p>
+            <dl>
+              <dt>What we tried</dt>
+              <dd>
+                Six invented local Postgres cases with fake generation, then one authorized Terra call with
+                metadata-only Langfuse export and CLI read-back audit. Retro safeguards exercise the actual compressed
+                SDK exporter against loopback and mock the read-only paginated audit; SQL verification is now wired into
+                CI.
+              </dd>
+              <dt>What happened</dt>
+              <dd>
+                Local contracts passed. One live answer and four Langfuse observations plus three numeric scores
+                arrived. A received SDK service resource exposed a local executable path; the original trace and scores
+                were deleted, a generic resource fixed, and saved metadata replayed without another model call.
+              </dd>
+              <dt>What it teaches</dt>
+              <dd>
+                Test source lifecycle and input limits before judging answers. Audit received telemetry resources as
+                well as application fields: the SDK can add identifying metadata outside a field allowlist. Capture the
+                full outbound payload locally before live export; reuse a tested read-back command rather than
+                reconstructing an audit each time.
+              </dd>
+            </dl>
+            <details>
+              <summary>Limits and interpretation</summary>
+              <p>
+                One toy live case demonstrates transport, not private relevance, claim support or owner usefulness.
+                Scores are retrieval/citation checks. No vector comparison, live dataset, hosted authentication or
+                Android/Mac-off flow was exercised.
+              </p>
+            </details>
+            <p class="connections">
+              Review <a href="#retrieval">Retrieval and RAG</a> ·
+              <a href="#provenance">Provenance and source freshness</a> ·
+              <a href="#citations">Resolvable citations</a> ·
+              <a href="#validation">Structural validation and semantic review</a> ·
+              <a href="#evaluation">Different layers of acceptance</a> ·
+              <a href="#replay">Offline replay versus live evidence</a>
+            </p>
+            <a class="source" href="../research/lab-context-baseline.md">Read the original record →</a>
+          </article>
         </section>
         <section id="concepts" class="view" hidden>
           <h1>Concepts to return to</h1>
@@ -797,7 +845,10 @@
                 Related: <a href="#embeddings">Embeddings and semantic search</a> ·
                 <a href="#grounding">Grounding and claim coverage</a>
               </p>
-              <p>Seen in: <a href="#cloud-retrieval">Finding the right passage</a></p>
+              <p>
+                Seen in: <a href="#cloud-retrieval">Finding the right passage</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
+              </p>
             </details>
           </article>
           <article id="embeddings" class="entry concept" data-view="concepts">
@@ -974,7 +1025,8 @@
               </p>
               <p>
                 Seen in: <a href="#eve-control">A tool loop is not automatically a better answer</a> ·
-                <a href="#model-choice">Same tools, different search decisions</a>
+                <a href="#model-choice">Same tools, different search decisions</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
               </p>
             </details>
           </article>
@@ -998,7 +1050,10 @@
                 Related: <a href="#citations">Resolvable citations</a> ·
                 <a href="#validation">Structural validation and semantic review</a>
               </p>
-              <p>Seen in: <a href="#investigation-design">Design the decision before the agent</a></p>
+              <p>
+                Seen in: <a href="#investigation-design">Design the decision before the agent</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
+              </p>
             </details>
           </article>
           <article id="grounding" class="entry concept" data-view="concepts">
@@ -1075,7 +1130,8 @@
               </p>
               <p>
                 Seen in: <a href="#offline-replay">What an offline replay can prove</a> ·
-                <a href="#live-investigation">Keep a negative result intact</a>
+                <a href="#live-investigation">Keep a negative result intact</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
               </p>
             </details>
           </article>
@@ -1099,7 +1155,10 @@
                 Related: <a href="#harness">The experiment harness</a> ·
                 <a href="#evaluation">Different layers of acceptance</a>
               </p>
-              <p>Seen in: <a href="#offline-replay">What an offline replay can prove</a></p>
+              <p>
+                Seen in: <a href="#offline-replay">What an offline replay can prove</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
+              </p>
             </details>
           </article>
           <article id="harness" class="entry concept" data-view="concepts">
@@ -1174,7 +1233,8 @@
               </p>
               <p>
                 Seen in: <a href="#model-choice">Same tools, different search decisions</a> ·
-                <a href="#live-investigation">Keep a negative result intact</a>
+                <a href="#live-investigation">Keep a negative result intact</a> ·
+                <a href="#integrated-lab-context">One evidence path before a real model call</a>
               </p>
             </details>
           </article>
@@ -1389,7 +1449,13 @@
             <h2>4 November 2026</h2>
             <p>
               The companion brings the recorded experiments together. The recurring lesson is to distinguish candidate
-              evidence, valid structure, semantic support and owner usefulness.
+              evidence, valid structure, semantic support and owner usefulness. The
+              <a href="#integrated-lab-context">integrated lab-context contract check</a> joins structured evidence and
+              full-text notes without a real model call. Local lifecycle checks were followed by one live synthetic
+              Terra/Langfuse transport audit. The received trace exposed an SDK service-resource path; the original
+              trace and scores were deleted and safe metadata replayed after setting a generic service name. The retro
+              added a local full-payload exporter test, wired SQL checks into CI and made trace auditing repeatable.
+              Answer usefulness remains unproved.
             </p>
             <p>
               Current open questions: Will bounded investigation add useful evidence on representative tasks? Which
@@ -1439,6 +1505,7 @@
             <li><a href="../research/eve-model-comparison.md">eve model comparison</a></li>
             <li><a href="../research/agent-investigation-design.md">agent investigation design</a></li>
             <li><a href="../research/synthetic-investigation-replay.md">synthetic investigation replay</a></li>
+            <li><a href="../research/lab-context-baseline.md">lab context baseline</a></li>
             <li>
               <a href="../research/markdown-retrieval-performance.md"
                 >Exact search, HNSW and retrieval architecture research</a

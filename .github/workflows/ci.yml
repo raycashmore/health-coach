@@ -26,4 +26,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm supabase:verify
       - run: pnpm verify
+      - run: pnpm lab-context:verify
       - run: pnpm build
