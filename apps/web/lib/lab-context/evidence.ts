@@ -18,14 +18,17 @@ function shift(date: string, days: number) {
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
 }
-export function structuredEvidence(raw: ContextRequest) {
-  const request = requestSchema.parse(raw);
-  const requestDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: request.activity.timeZone,
+export function contextRequestDate(asOf: string, timeZone: string) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  }).format(new Date(request.asOf));
+  }).format(new Date(asOf));
+}
+export function structuredEvidence(raw: ContextRequest) {
+  const request = requestSchema.parse(raw);
+  const requestDate = contextRequestDate(request.asOf, request.activity.timeZone);
   // Unknown collection dates could be the newest panel: do not infer chronology.
   if (request.panels.some((panel) => panel.collectionDate === null)) throw new Error('ambiguous-panel-date');
   const eligible = request.panels
@@ -35,24 +38,7 @@ export function structuredEvidence(raw: ContextRequest) {
   if (!panel || eligible[1]?.collectionDate === panel.collectionDate) throw new Error('ambiguous-panel-date');
   const selected = panel.results.slice(0, 10);
   if (new Set(selected.map((result) => result.id)).size !== selected.length) throw new Error('duplicate-evidence');
-  const windows = [
-    { id: 'activity-collection', before: panel.collectionDate! },
-    { id: 'activity-request', before: requestDate }
-  ].map(({ id, before }) => {
-    const start = shift(before, -14),
-      end = shift(before, -1);
-    const days = request.activity.days.filter((day) => day.date >= start && day.date <= end);
-    return {
-      id,
-      start,
-      end,
-      timeZone: request.activity.timeZone,
-      expectedDays: 14,
-      coveredStepsDays: days.filter((day) => day.steps !== null).length,
-      coveredSleepDays: days.filter((day) => day.sleepMinutes !== null).length,
-      days
-    };
-  });
+  const windows = activityWindows(request.activity, requestDate, panel.collectionDate!);
   return {
     question: request.question,
     asOf: request.asOf,
@@ -72,6 +58,31 @@ export function structuredEvidence(raw: ContextRequest) {
     )
   };
 }
+export function activityWindows(
+  activity: ContextRequest['activity'],
+  requestDate: string,
+  collectionDate: string | null
+) {
+  return [
+    ...(collectionDate ? [{ id: 'activity-collection' as const, before: collectionDate }] : []),
+    { id: 'activity-request' as const, before: requestDate }
+  ].map(({ id, before }) => {
+    const start = shift(before, -14),
+      end = shift(before, -1);
+    const days = activity.days.filter((day) => day.date >= start && day.date <= end);
+    return {
+      id,
+      start,
+      end,
+      timeZone: activity.timeZone,
+      expectedDays: 14 as const,
+      coveredStepsDays: days.filter((day) => day.steps !== null).length,
+      coveredSleepDays: days.filter((day) => day.sleepMinutes !== null).length,
+      days
+    };
+  });
+}
+
 export const contextInstructions = `Explain the supplied laboratory panel alongside activity and notes, using only this evidence.
 Describe source values against supplied reference ranges; clinical significance is not established here.
 Read in this order: collection date and findings, relevant activity/notes, then uncertainty.

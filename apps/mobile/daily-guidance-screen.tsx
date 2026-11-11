@@ -12,6 +12,7 @@ import { RatingButtons } from './rating-buttons';
 import type { RatingJudgement } from './rating-buttons';
 import { ScreenLead } from './screen-lead';
 import { SectionHeading } from './section-heading';
+import { SyntheticContextExample } from './synthetic-context-example';
 import { colors, field, fonts, layout, rule, spacing, typography } from './theme';
 import { useWearableReview } from './use-wearable-review';
 import { metricLabels } from './wearable-labels';
@@ -275,6 +276,7 @@ export function DailyGuidanceScreen() {
           {feedbackLocation === 'rating' ? feedback : null}
         </View>
       ) : null}
+      {__DEV__ ? <SyntheticContextExample /> : null}
     </ScrollView>
   );
 }

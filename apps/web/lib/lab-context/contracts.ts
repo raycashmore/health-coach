@@ -1,46 +1,6 @@
 import { z } from 'zod';
+import { panelSchema, snapshotSchema, sectionSchema } from '@health-coach/health-core/lab-context';
 
-export const dateSchema = z.iso.date();
-export const panelSchema = z.object({
-  id: z.string().min(1),
-  sourceId: z.string().min(1),
-  collectionDate: dateSchema.nullable(),
-  results: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        name: z.string().min(1),
-        value: z.number().finite(),
-        unit: z.string().min(1),
-        referenceRange: z.string().nullable(),
-        aliases: z.array(z.string()).default([])
-      })
-    )
-    .min(1)
-});
-export const snapshotSchema = z
-  .object({
-    id: z.string().uuid(),
-    timeZone: z.string().refine((value) => {
-      try {
-        new Intl.DateTimeFormat('en', { timeZone: value });
-        return true;
-      } catch {
-        return false;
-      }
-    }),
-    days: z.array(
-      z.object({
-        date: dateSchema,
-        steps: z.number().int().nonnegative().nullable(),
-        sleepMinutes: z.number().nonnegative().nullable()
-      })
-    )
-  })
-  .superRefine((value, ctx) => {
-    if (new Set(value.days.map((day) => day.date)).size !== value.days.length)
-      ctx.addIssue({ code: 'custom', message: 'Duplicate activity dates' });
-  });
 export const requestSchema = z.object({
   caseId: z.string().uuid(),
   ownerId: z.string().uuid(),
@@ -48,15 +8,6 @@ export const requestSchema = z.object({
   asOf: z.iso.datetime({ offset: true }),
   panels: z.array(panelSchema),
   activity: snapshotSchema
-});
-export const sectionSchema = z.object({
-  id: z.string().min(1),
-  documentId: z.string().min(1),
-  headingPath: z.array(z.string()),
-  startLine: z.number().int().positive(),
-  endLine: z.number().int().positive(),
-  text: z.string().min(1),
-  authoredDate: dateSchema.nullable()
 });
 export const publicationSchema = z
   .object({

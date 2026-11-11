@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Sql } from 'postgres';
-import { publicationSchema, sectionSchema } from './contracts';
+import { publicationSchema } from './contracts';
+import { sectionSchema } from '@health-coach/health-core/lab-context';
 import type { ContextStore } from './contracts';
 
 export const manifestSchema = z
