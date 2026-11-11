@@ -5,6 +5,7 @@ export const panelSchema = z.object({
   id: z.string().min(1),
   sourceId: z.string().min(1),
   collectionDate: dateSchema.nullable(),
+  omittedSourceResults: z.number().int().nonnegative().optional(),
   results: z
     .array(
       z.object({
@@ -75,7 +76,7 @@ export type SyntheticContextScenario = z.infer<typeof syntheticContextScenarioSc
 
 export const contextPacketSchema = z
   .object({
-    kind: z.literal('synthetic-context'),
+    kind: z.enum(['synthetic-context', 'private-context']),
     caseId: z.string().uuid(),
     question: z.string(),
     asOf: z.iso.datetime({ offset: true }),

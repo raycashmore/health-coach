@@ -26,7 +26,7 @@ export function ContextPacketEvidence({ packet }: { packet: ContextPacket }) {
                   {result.name}: {result.value} {result.unit}
                 </Text>
                 <Text style={typography.meta}>
-                  Source range: {result.referenceRange ?? 'not supplied'} · {result.evidenceId}
+                  Source range: {result.referenceRange ?? 'not supplied'} · {result.evidenceId} · {result.id}
                 </Text>
               </View>
             ))}
@@ -82,7 +82,9 @@ export function ContextPacketEvidence({ packet }: { packet: ContextPacket }) {
         <SectionHeading title="Notes" />
         <Text style={typography.note}>
           {packet.notes.status === 'current'
-            ? 'Revision checked current when this packet was loaded.'
+            ? packet.kind === 'private-context'
+              ? 'Prepared source revision checked unchanged when loaded. This does not establish when the notes were authored.'
+              : 'Revision checked current when this packet was loaded.'
             : packet.notes.status === 'stale'
               ? 'Notes changed or were deleted. Previous passages withheld.'
               : 'Notes unavailable. No passages were used.'}
@@ -120,7 +122,9 @@ export function ContextPacketEvidence({ packet }: { packet: ContextPacket }) {
       </View>
       <View style={rule.light} />
       <View style={styles.group}>
-        <SectionHeading title="Limits of this example" />
+        <SectionHeading
+          title={packet.kind === 'private-context' ? 'Limits of this packet' : 'Limits of this example'}
+        />
         {packet.limitations.map((limitation) => (
           <Text key={limitation} style={typography.note}>
             {limitation}

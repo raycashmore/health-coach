@@ -48,7 +48,7 @@ export function structuredEvidence(raw: ContextRequest) {
       sourceId: panel.sourceId,
       collectionDate: panel.collectionDate,
       results: selected.map((result, i) => ({ ...result, evidenceId: `lab-${i + 1}` })),
-      omittedResults: panel.results.length - selected.length
+      omittedResults: panel.results.length - selected.length + (panel.omittedSourceResults ?? 0)
     },
     activitySnapshotId: request.activity.id,
     windows,

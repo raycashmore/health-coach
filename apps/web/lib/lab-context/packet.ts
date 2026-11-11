@@ -7,12 +7,12 @@ import { activityWindows, contextRequestDate, packEvidence, structuredEvidence }
 /** Assemble prepared evidence only. No generation, persistence or private source discovery. */
 export async function assembleContextPacket(
   raw: ContextRequest,
-  dependencies: { store: ContextStore; activityAvailable?: boolean; now?: () => Date }
+  dependencies: { store: ContextStore; activityAvailable?: boolean; now?: () => Date; kind?: ContextPacket['kind'] }
 ): Promise<ContextPacket> {
   const request = requestSchema.parse(raw);
   const requestDate = contextRequestDate(request.asOf, request.activity.timeZone);
   const packet: ContextPacket = {
-    kind: 'synthetic-context',
+    kind: dependencies.kind ?? 'synthetic-context',
     caseId: request.caseId,
     question: request.question,
     asOf: request.asOf,
@@ -33,7 +33,11 @@ export async function assembleContextPacket(
       datedCount: 0,
       undatedCount: 0
     },
-    limitations: ['Synthetic prepared evidence only. No AI interpretation or health recommendation.']
+    limitations: [
+      dependencies.kind === 'private-context'
+        ? 'Prepared private evidence only. No AI interpretation or health recommendation.'
+        : 'Synthetic prepared evidence only. No AI interpretation or health recommendation.'
+    ]
   };
   // An unavailable read must never be interpreted as a genuine empty/zero activity record.
   const evidenceRequest =
